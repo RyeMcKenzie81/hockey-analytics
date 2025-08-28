@@ -7,6 +7,8 @@ pydantic-settings==2.2.1
 
 # Database & Storage
 supabase==2.3.4
+gotrue==1.2.0
+storage3==0.7.4
 python-dotenv==1.0.1
 
 # Async Support  
