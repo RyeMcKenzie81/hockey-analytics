@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hockey Vizion - Coming Soon</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            position: relative;
+        }
+        
+        #matrix-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .title-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            text-align: center;
+            width: 90%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .title {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(60px, 15vw, 180px);
+            font-weight: 900;
+            color: #00ff00;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            text-shadow: 
+                0 0 10px #00ff00,
+                0 0 20px #00ff00,
+                0 0 30px #00ff00,
+                0 0 40px #00ff00,
+                0 0 70px #00ff00,
+                0 0 80px #00ff00,
+                0 0 100px #00ff00,
+                0 0 150px #00ff00;
+            animation: pulsate 2s ease-in-out infinite;
+            user-select: none;
+        }
+        
+        @keyframes pulsate {
+            0%, 100% {
+                text-shadow: 
+                    0 0 10px #00ff00,
+                    0 0 20px #00ff00,
+                    0 0 30px #00ff00,
+                    0 0 40px #00ff00,
+                    0 0 70px #00ff00,
+                    0 0 80px #00ff00,
+                    0 0 100px #00ff00,
+                    0 0 150px #00ff00;
+            }
+            50% {
+                text-shadow: 
+                    0 0 20px #00ff00,
+                    0 0 30px #00ff00,
+                    0 0 40px #00ff00,
+                    0 0 50px #00ff00,
+                    0 0 80px #00ff00,
+                    0 0 100px #00ff00,
+                    0 0 120px #00ff00,
+                    0 0 200px #00ff00;
+            }
+        }
+        
+        .subtitle {
+            margin-top: 30px;
+            font-size: 18px;
+            color: #00ff00;
+            opacity: 0.7;
+            letter-spacing: 0.3em;
+            animation: flicker 3s infinite;
+        }
+        
+        @keyframes flicker {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 0.4; }
+        }
+        
+        .midi-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            opacity: 0.3;
+            transition: opacity 0.3s;
+        }
+        
+        .midi-controls:hover {
+            opacity: 1;
+        }
+        
+        .midi-btn {
+            background: transparent;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 2px;
+            text-shadow: 0 0 5px #00ff00;
+        }
+        
+        .midi-btn:hover {
+            background: #00ff00;
+            color: #000;
+        }
+        
+        .retro-badge {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            color: #00ff00;
+            font-size: 10px;
+            opacity: 0.5;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .loading {
+            animation: blink 0.5s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-rain"></canvas>
+    
+    <div class="title-container">
+        <h1 class="title">Hockey Vizion</h1>
+        <div class="subtitle">[ INITIALIZING... ]</div>
+    </div>
+    
+    <div class="midi-controls">
+        <button class="midi-btn" onclick="toggleMusic()">🎵 TOGGLE MIDI</button>
+        <button class="midi-btn" onclick="changeVolume()">VOL: <span id="vol">70</span>%</button>
+    </div>
+    
+    <div class="retro-badge">
+        <span class="loading">▶</span> BEST VIEWED IN NETSCAPE NAVIGATOR 4.0
+    </div>
+
+    <!-- Audio player with MP3 - this will actually work! -->
+    <audio id="background-music" autoplay loop>
+        <source src="/static/Nine_Inch_Nails_-_The_Perfect_Drug.mp3" type="audio/mpeg">
+        <source src="/static/Nine_Inch_Nails_-_The_Perfect_Drug.mp3" type="audio/mp3">
+    </audio>
+
+    <script>
+        // Matrix Rain Effect
+        const canvas = document.getElementById('matrix-rain');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}";
+        const matrixArray = matrix.split("");
+        
+        const fontSize = 10;
+        const columns = canvas.width / fontSize;
+        
+        const drops = [];
+        for(let x = 0; x < columns; x++) {
+            drops[x] = Math.floor(Math.random() * -100);
+        }
+        
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#00ff00';
+            ctx.font = fontSize + 'px monospace';
+            
+            for(let i = 0; i < drops.length; i++) {
+                const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+        
+        setInterval(draw, 35);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        // Retro loading messages
+        const messages = [
+            '[ INITIALIZING... ]',
+            '[ LOADING HOCKEY DATA... ]',
+            '[ CALIBRATING SENSORS... ]',
+            '[ ESTABLISHING UPLINK... ]',
+            '[ SYNCHRONIZING... ]',
+            '[ READY ]',
+            '[ SYSTEM ONLINE ]',
+            '[ WELCOME TO THE VIZION ]'
+        ];
+        
+        let msgIndex = 0;
+        setInterval(() => {
+            document.querySelector('.subtitle').textContent = messages[msgIndex];
+            msgIndex = (msgIndex + 1) % messages.length;
+        }, 3000);
+        
+        // Music controls
+        let volume = 70;
+        let musicPlaying = false;
+        let audioStarted = false;
+        
+        // Autoplay the MP3 when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            const audio = document.getElementById('background-music');
+            
+            if (audio) {
+                audio.volume = volume / 100;
+                
+                // Try to play automatically
+                const playPromise = audio.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        // Autoplay started successfully
+                        musicPlaying = true;
+                        audioStarted = true;
+                        console.log('🎵 NIN - The Perfect Drug playing');
+                        document.querySelector('.subtitle').textContent = '[ SYSTEM ONLINE ]';
+                    }).catch(error => {
+                        // Autoplay was blocked, show click prompt
+                        console.log('Autoplay blocked:', error);
+                        document.querySelector('.subtitle').textContent = '[ CLICK ANYWHERE TO ENABLE AUDIO ]';
+                    });
+                }
+            }
+        });
+        
+        // Backup: Start music on first click if autoplay was blocked
+        document.addEventListener('click', function startAudio() {
+            if (!audioStarted) {
+                const audio = document.getElementById('background-music');
+                if (audio) {
+                    audio.play();
+                    musicPlaying = true;
+                    audioStarted = true;
+                    document.querySelector('.subtitle').textContent = '[ SYSTEM ONLINE ]';
+                    console.log('🎵 Audio started on user interaction');
+                }
+                document.removeEventListener('click', startAudio);
+            }
+        });
+        
+        function toggleMusic() {
+            const audio = document.getElementById('background-music');
+            if (!audio) return;
+            
+            musicPlaying = !musicPlaying;
+            if (musicPlaying) {
+                audio.play();
+            } else {
+                audio.pause();
+            }
+        }
+        
+        function changeVolume() {
+            volume = (volume + 30) % 110;
+            if (volume === 0) volume = 10;
+            document.getElementById('vol').textContent = volume;
+            
+            const audio = document.getElementById('background-music');
+            if (audio) {
+                audio.volume = volume / 100;
+            }
+        }
+        
+        // Add some 90s console messages
+        console.log('%c HOCKEY VIZION ', 'background: #00ff00; color: #000; font-size: 24px; font-weight: bold; padding: 10px;');
+        console.log('%c Welcome to the Vizion ', 'color: #00ff00; font-size: 12px;');
+        console.log('%c NIN - The Perfect Drug ', 'color: #00ff00; font-size: 10px;');
+        
+        // Easter egg: Konami code
+        let konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+        let konamiIndex = 0;
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === konamiCode[konamiIndex]) {
+                konamiIndex++;
+                if (konamiIndex === konamiCode.length) {
+                    document.querySelector('.title').style.animation = 'spin 1s linear infinite';
+                    alert('🏒 POWER PLAY MODE ACTIVATED! 🏒');
+                    konamiIndex = 0;
+                }
+            } else {
+                konamiIndex = 0;
+            }
+        });
+        
+        // Add spin animation
+        const style = document.createElement('style');
+        style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

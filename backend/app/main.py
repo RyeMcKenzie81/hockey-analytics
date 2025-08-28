@@ -1,7 +1,10 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional
+from pathlib import Path
 import logging
 import os
 from datetime import datetime
@@ -45,6 +48,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Mount static files directory (for MIDI and other assets)
+# Check if we're in backend directory or root
+static_path = Path("../") if Path("../Nine_Inch_Nails_-_The_Perfect_Drug.mid").exists() else Path(".")
+app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -66,10 +74,27 @@ async def health_check() -> Dict[str, Any]:
     }
 
 
-# Root endpoint
-@app.get("/")
-async def root() -> Dict[str, str]:
-    """Root endpoint with basic API information."""
+# Root endpoint - Matrix landing page
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Serve the Matrix-style landing page."""
+    template_path = Path(__file__).parent / "templates" / "index.html"
+    if template_path.exists():
+        with open(template_path, "r") as f:
+            return HTMLResponse(content=f.read())
+    else:
+        # Fallback to API info if template not found
+        return {
+            "name": settings.APP_NAME,
+            "version": settings.APP_VERSION,
+            "docs": "/docs",
+            "health": "/health"
+        }
+
+# API info endpoint
+@app.get("/api")
+async def api_info() -> Dict[str, str]:
+    """API endpoint with basic information."""
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
