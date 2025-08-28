@@ -16,17 +16,33 @@ class SupabaseClient:
                 logger.info(f"Initializing Supabase client with URL: {settings.SUPABASE_URL[:30]}...")
                 logger.info(f"Railway environment: {settings.RAILWAY_ENVIRONMENT}")
                 
-                # Check if Railway is setting proxy environment variables
+                # Check and temporarily clear proxy environment variables
                 import os
                 proxy_vars = {k: v for k, v in os.environ.items() if 'proxy' in k.lower()}
                 if proxy_vars:
                     logger.warning(f"Found proxy environment variables: {proxy_vars}")
                 
-                cls._instance = create_client(
-                    settings.SUPABASE_URL,
-                    settings.SUPABASE_ANON_KEY
-                )
-                logger.info("Supabase client initialized successfully")
+                # Temporarily clear proxy variables during Supabase initialization
+                original_env = {}
+                proxy_env_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']
+                
+                for var in proxy_env_vars:
+                    if var in os.environ:
+                        original_env[var] = os.environ[var]
+                        del os.environ[var]
+                        logger.info(f"Temporarily removed {var} environment variable")
+                
+                try:
+                    cls._instance = create_client(
+                        settings.SUPABASE_URL,
+                        settings.SUPABASE_ANON_KEY
+                    )
+                    logger.info("Supabase client initialized successfully")
+                finally:
+                    # Restore proxy environment variables
+                    for var, value in original_env.items():
+                        os.environ[var] = value
+                        logger.info(f"Restored {var} environment variable")
             except TypeError as e:
                 logger.error(f"Supabase client TypeError - trying without options: {e}")
                 # Try without any options
