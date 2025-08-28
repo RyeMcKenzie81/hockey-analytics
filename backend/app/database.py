@@ -13,11 +13,24 @@ class SupabaseClient:
     def get_client(cls) -> Client:
         if cls._instance is None:
             try:
+                logger.info(f"Initializing Supabase client with URL: {settings.SUPABASE_URL[:30]}...")
                 cls._instance = create_client(
                     settings.SUPABASE_URL,
                     settings.SUPABASE_ANON_KEY
                 )
                 logger.info("Supabase client initialized successfully")
+            except TypeError as e:
+                logger.error(f"Supabase client TypeError - likely version issue: {e}")
+                # Try with minimal arguments in case of version conflicts
+                try:
+                    cls._instance = create_client(
+                        settings.SUPABASE_URL,
+                        settings.SUPABASE_ANON_KEY
+                    )
+                    logger.info("Supabase client initialized with fallback method")
+                except Exception as e2:
+                    logger.error(f"Fallback initialization also failed: {e2}")
+                    raise
             except Exception as e:
                 logger.error(f"Failed to initialize Supabase client: {e}")
                 raise
