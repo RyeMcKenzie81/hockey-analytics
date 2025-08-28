@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_ANON_KEY: str
     SUPABASE_SERVICE_KEY: Optional[str] = None
+    SUPABASE_ACCESS_TOKEN: Optional[str] = None
     
     # Redis (for later)
     REDIS_URL: Optional[str] = None
