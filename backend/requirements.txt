@@ -6,12 +6,11 @@ pydantic==2.6.1
 pydantic-settings==2.2.1
 
 # Database & Storage
-supabase==2.4.2
-gotrue==2.4.2
+supabase==2.3.4
 python-dotenv==1.0.1
 
-# Async Support
-httpx==0.25.2
+# Async Support  
+httpx==0.24.1
 aiofiles==23.2.1
 
 # Utilities
