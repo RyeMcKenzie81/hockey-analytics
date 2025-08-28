@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header, WebSocket, WebSocketDisconnect, Response
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header, WebSocket, WebSocketDisconnect, Response
 from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from uuid import UUID, uuid4
@@ -144,13 +144,20 @@ async def get_hls_file(
 
 @router.post("/upload/init")
 async def init_chunked_upload(
-    filename: str,
-    file_size: int,
-    total_chunks: int,
-    org_id: str = "default",
+    filename: str = Form(...),
+    file_size: str = Form(...),
+    total_chunks: str = Form(...),
+    org_id: str = Form(default="default"),
     supabase: Client = Depends(get_supabase)
 ):
     """Initialize chunked upload session"""
+    
+    try:
+        # Convert string parameters to correct types
+        file_size_int = int(file_size)
+        total_chunks_int = int(total_chunks)
+    except ValueError:
+        raise HTTPException(400, "file_size and total_chunks must be valid integers")
     
     # Generate session and video IDs
     session_id = str(uuid4())
@@ -161,11 +168,11 @@ async def init_chunked_upload(
         'id': video_id,
         'organization_id': org_id,
         'filename': filename,
-        'file_size': file_size,
+        'file_size': file_size_int,
         'status': 'uploading',
         'metadata': {
             'session_id': session_id,
-            'total_chunks': total_chunks,
+            'total_chunks': total_chunks_int,
             'uploaded_chunks': []
         }
     }
@@ -181,12 +188,17 @@ async def init_chunked_upload(
 
 @router.post("/upload/chunk")
 async def upload_chunk(
-    session_id: str,
-    chunk_index: int,
+    session_id: str = Form(...),
+    chunk_index: str = Form(...),
     chunk: UploadFile = File(...),
     supabase: Client = Depends(get_supabase)
 ):
     """Upload a video chunk"""
+    
+    try:
+        chunk_index_int = int(chunk_index)
+    except ValueError:
+        raise HTTPException(400, "chunk_index must be a valid integer")
     
     # Find video by session ID
     result = supabase.table('videos').select('*').eq('metadata->>session_id', session_id).execute()
@@ -199,7 +211,7 @@ async def upload_chunk(
     org_id = video['organization_id']
     
     # Save chunk to temp storage
-    chunk_path = f"videos/{org_id}/{video_id}/chunks/chunk_{chunk_index:04d}.tmp"
+    chunk_path = f"videos/{org_id}/{video_id}/chunks/chunk_{chunk_index_int:04d}.tmp"
     
     # Upload chunk to Supabase
     chunk_data = await chunk.read()
@@ -212,17 +224,17 @@ async def upload_chunk(
     # Update metadata
     metadata = video.get('metadata', {})
     uploaded_chunks = metadata.get('uploaded_chunks', [])
-    uploaded_chunks.append(chunk_index)
+    uploaded_chunks.append(chunk_index_int)
     metadata['uploaded_chunks'] = uploaded_chunks
     
     supabase.table('videos').update({'metadata': metadata}).eq('id', video_id).execute()
     
-    return {"message": f"Chunk {chunk_index} uploaded successfully"}
+    return {"message": f"Chunk {chunk_index_int} uploaded successfully"}
 
 
 @router.post("/upload/complete")
 async def complete_upload(
-    session_id: str,
+    session_id: str = Form(...),
     supabase: Client = Depends(get_supabase)
 ):
     """Complete chunked upload and assemble video"""
