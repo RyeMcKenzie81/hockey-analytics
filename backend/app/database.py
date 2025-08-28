@@ -14,15 +14,17 @@ class SupabaseClient:
         if cls._instance is None:
             try:
                 logger.info(f"Initializing Supabase client with URL: {settings.SUPABASE_URL[:30]}...")
+                logger.info(f"Railway environment: {settings.RAILWAY_ENVIRONMENT}")
                 
-                # For Railway deployment, try creating with explicit empty options
-                from supabase import ClientOptions
-                options = ClientOptions()
+                # Check if Railway is setting proxy environment variables
+                import os
+                proxy_vars = {k: v for k, v in os.environ.items() if 'proxy' in k.lower()}
+                if proxy_vars:
+                    logger.warning(f"Found proxy environment variables: {proxy_vars}")
                 
                 cls._instance = create_client(
                     settings.SUPABASE_URL,
-                    settings.SUPABASE_ANON_KEY,
-                    options
+                    settings.SUPABASE_ANON_KEY
                 )
                 logger.info("Supabase client initialized successfully")
             except TypeError as e:
