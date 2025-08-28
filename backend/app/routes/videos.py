@@ -164,7 +164,7 @@ async def init_chunked_upload(
     video_id = str(uuid4())
     
     # Create video record  
-    storage_path = f"videos/{org_id}/{video_id}/original.mp4"
+    storage_path = f"{org_id}/{video_id}/original.mp4"
     video_data = {
         'id': video_id,
         'organization_id': org_id,  # Keep as text for backwards compatibility
@@ -215,7 +215,7 @@ async def upload_chunk(
     org_id = video['organization_id']
     
     # Save chunk to temp storage
-    chunk_path = f"videos/{org_id}/{video_id}/chunks/chunk_{chunk_index_int:04d}.tmp"
+    chunk_path = f"{org_id}/{video_id}/chunks/chunk_{chunk_index_int:04d}.tmp"
     
     # Upload chunk to Supabase
     chunk_data = await chunk.read()

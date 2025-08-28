@@ -62,9 +62,12 @@ export function VeoUploader() {
       }
       
       // Complete upload
+      const completeData = new FormData()
+      completeData.append('session_id', sessionId)
+      
       await axios.post(
         `${API_URL}/api/videos/upload/complete`,
-        { session_id: sessionId }
+        completeData
       )
       
       // Navigate to video page

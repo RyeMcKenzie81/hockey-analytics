@@ -39,7 +39,7 @@ class VideoUpload(BaseModel):
 
 class VideoResponse(BaseModel):
     id: UUID
-    org_id: UUID
+    org_id: Optional[str] = None  # Allow None values from database
     filename: str
     storage_path: str
     file_size_bytes: Optional[int] = None
@@ -65,7 +65,7 @@ class EventCreate(BaseModel):
 
 class EventResponse(BaseModel):
     id: UUID
-    org_id: UUID
+    org_id: str  # Changed from UUID to str to handle "default" organization
     video_id: UUID
     event_type: EventType
     timestamp_seconds: float
