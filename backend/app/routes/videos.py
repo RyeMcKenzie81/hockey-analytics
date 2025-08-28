@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header, WebSocket, WebSocketDisconnect, Response
+from fastapi.responses import StreamingResponse
 from typing import List, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 import logging
+import json
+import asyncio
 
 from ..models import VideoResponse, ServiceResponse
 from ..database import get_supabase
+from ..services.video_processor import VideoProcessor
+from ..services.streaming import StreamingService
+from supabase import Client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -15,15 +21,273 @@ async def list_videos(
     org_id: Optional[UUID] = None,
     status: Optional[str] = None,
     limit: int = 100,
-    offset: int = 0
+    offset: int = 0,
+    supabase: Client = Depends(get_supabase)
 ):
     """List videos with optional filtering."""
-    # Will be implemented with Supabase integration
-    return []
+    query = supabase.table('videos').select('*')
+    
+    if org_id:
+        query = query.eq('organization_id', str(org_id))
+    if status:
+        query = query.eq('status', status)
+    
+    query = query.range(offset, offset + limit - 1)
+    result = query.execute()
+    
+    return result.data
 
 
 @router.get("/{video_id}", response_model=VideoResponse)
-async def get_video(video_id: UUID):
+async def get_video(
+    video_id: UUID,
+    supabase: Client = Depends(get_supabase)
+):
     """Get a specific video by ID."""
-    # Will be implemented with Supabase integration
-    raise HTTPException(status_code=404, detail="Video not found")
+    result = supabase.table('videos').select('*').eq('id', str(video_id)).execute()
+    
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    return result.data[0]
+
+
+@router.post("/upload")
+async def upload_video(
+    file: UploadFile = File(...),
+    org_id: str = "default",
+    supabase: Client = Depends(get_supabase)
+):
+    """Upload video and queue for processing"""
+    
+    # Validate file
+    if not file.filename.endswith(('.mp4', '.mov', '.avi', '.mkv')):
+        raise HTTPException(400, "Invalid video format")
+    
+    # Check file size (max 5GB)
+    file.file.seek(0, 2)
+    file_size = file.file.tell()
+    file.file.seek(0)
+    
+    if file_size > 5 * 1024 * 1024 * 1024:
+        raise HTTPException(400, "File too large (max 5GB)")
+    
+    # Generate video ID
+    video_id = str(uuid4())
+    
+    # Create video record in database
+    video_data = {
+        'id': video_id,
+        'organization_id': org_id,
+        'filename': file.filename,
+        'file_size': file_size,
+        'status': 'uploading'
+    }
+    
+    result = supabase.table('videos').insert(video_data).execute()
+    
+    # Process upload
+    processor = VideoProcessor(supabase)
+    try:
+        result = await processor.process_upload(file, video_id, org_id)
+        return {
+            "video_id": video_id,
+            "status": "processing",
+            "message": "Video uploaded and queued for processing",
+            "metadata": result['metadata']
+        }
+    except Exception as e:
+        # Update status on error
+        supabase.table('videos').update({'status': 'error'}).eq('id', video_id).execute()
+        raise HTTPException(500, f"Upload failed: {str(e)}")
+
+
+@router.get("/{video_id}/stream")
+async def stream_video(
+    video_id: str,
+    start: float = 0,
+    end: Optional[float] = None,
+    quality: str = "720p",
+    range: Optional[str] = Header(None),
+    org_id: str = "default",
+    supabase: Client = Depends(get_supabase)
+):
+    """Stream video segment"""
+    
+    # Verify video exists
+    result = supabase.table('videos').select('*').eq('id', video_id).execute()
+    if not result.data:
+        raise HTTPException(404, "Video not found")
+    
+    video = result.data[0]
+    if video['status'] != 'ready':
+        raise HTTPException(400, f"Video is {video['status']}, not ready for streaming")
+    
+    streaming = StreamingService(supabase)
+    return await streaming.stream_video_segment(
+        video_id, org_id, start, end, quality, range
+    )
+
+
+@router.get("/{video_id}/hls/{filename:path}")
+async def get_hls_file(
+    video_id: str,
+    filename: str,
+    org_id: str = "default",
+    supabase: Client = Depends(get_supabase)
+):
+    """Serve HLS manifest and segment files"""
+    
+    streaming = StreamingService(supabase)
+    return await streaming.get_hls_manifest(video_id, org_id, filename)
+
+
+@router.post("/upload/init")
+async def init_chunked_upload(
+    filename: str,
+    file_size: int,
+    total_chunks: int,
+    org_id: str = "default",
+    supabase: Client = Depends(get_supabase)
+):
+    """Initialize chunked upload session"""
+    
+    # Generate session and video IDs
+    session_id = str(uuid4())
+    video_id = str(uuid4())
+    
+    # Create video record
+    video_data = {
+        'id': video_id,
+        'organization_id': org_id,
+        'filename': filename,
+        'file_size': file_size,
+        'status': 'uploading',
+        'metadata': {
+            'session_id': session_id,
+            'total_chunks': total_chunks,
+            'uploaded_chunks': []
+        }
+    }
+    
+    supabase.table('videos').insert(video_data).execute()
+    
+    return {
+        "session_id": session_id,
+        "video_id": video_id,
+        "message": "Upload session initialized"
+    }
+
+
+@router.post("/upload/chunk")
+async def upload_chunk(
+    session_id: str,
+    chunk_index: int,
+    chunk: UploadFile = File(...),
+    supabase: Client = Depends(get_supabase)
+):
+    """Upload a video chunk"""
+    
+    # Find video by session ID
+    result = supabase.table('videos').select('*').eq('metadata->>session_id', session_id).execute()
+    
+    if not result.data:
+        raise HTTPException(404, "Upload session not found")
+    
+    video = result.data[0]
+    video_id = video['id']
+    org_id = video['organization_id']
+    
+    # Save chunk to temp storage
+    chunk_path = f"videos/{org_id}/{video_id}/chunks/chunk_{chunk_index:04d}.tmp"
+    
+    # Upload chunk to Supabase
+    chunk_data = await chunk.read()
+    supabase.storage.from_('videos').upload(
+        chunk_path,
+        chunk_data,
+        file_options={"content-type": "application/octet-stream", "upsert": "true"}
+    )
+    
+    # Update metadata
+    metadata = video.get('metadata', {})
+    uploaded_chunks = metadata.get('uploaded_chunks', [])
+    uploaded_chunks.append(chunk_index)
+    metadata['uploaded_chunks'] = uploaded_chunks
+    
+    supabase.table('videos').update({'metadata': metadata}).eq('id', video_id).execute()
+    
+    return {"message": f"Chunk {chunk_index} uploaded successfully"}
+
+
+@router.post("/upload/complete")
+async def complete_upload(
+    session_id: str,
+    supabase: Client = Depends(get_supabase)
+):
+    """Complete chunked upload and assemble video"""
+    
+    # Find video by session ID
+    result = supabase.table('videos').select('*').eq('metadata->>session_id', session_id).execute()
+    
+    if not result.data:
+        raise HTTPException(404, "Upload session not found")
+    
+    video = result.data[0]
+    video_id = video['id']
+    org_id = video['organization_id']
+    metadata = video.get('metadata', {})
+    
+    # Verify all chunks uploaded
+    total_chunks = metadata.get('total_chunks', 0)
+    uploaded_chunks = metadata.get('uploaded_chunks', [])
+    
+    if len(uploaded_chunks) != total_chunks:
+        raise HTTPException(400, f"Missing chunks: {total_chunks - len(uploaded_chunks)} chunks not uploaded")
+    
+    # TODO: Implement chunk assembly logic
+    # For now, mark as processing
+    supabase.table('videos').update({'status': 'processing'}).eq('id', video_id).execute()
+    
+    # Queue for processing
+    processor = VideoProcessor(supabase)
+    # Note: In production, this would assemble chunks first
+    
+    return {
+        "video_id": video_id,
+        "status": "processing",
+        "message": "Upload complete, video queued for processing"
+    }
+
+
+@router.websocket("/ws/{video_id}")
+async def video_websocket(
+    websocket: WebSocket,
+    video_id: str
+):
+    """WebSocket for real-time video processing updates"""
+    
+    await websocket.accept()
+    
+    try:
+        # Send initial status
+        await websocket.send_json({
+            "type": "connected",
+            "video_id": video_id
+        })
+        
+        # In production, this would subscribe to Redis pubsub
+        # For now, simulate updates
+        while True:
+            # Wait for messages or send periodic status
+            await asyncio.sleep(5)
+            await websocket.send_json({
+                "type": "status",
+                "video_id": video_id,
+                "status": "processing"
+            })
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for video {video_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        await websocket.close()
