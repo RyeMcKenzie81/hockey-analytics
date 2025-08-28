@@ -15,7 +15,7 @@
 - **Queue**: Redis (Railway addon)
 - **Frontend**: Next.js + TypeScript + Tailwind CSS
 
-**Project Status**: Phase 1 - Foundation & Deployment
+**Project Status**: Phase 2 - Video Processing & HLS Streaming
 
 ---
 
@@ -220,33 +220,50 @@ RAILWAY_ENVIRONMENT=
 ## 📋 Current Implementation Checklist
 
 ### Phase 1: Foundation ✅
-- [ ] FastAPI setup
-- [ ] Supabase connection
-- [ ] Railway deployment
-- [ ] GitHub integration
-- [ ] Basic video upload
+- [x] FastAPI setup
+- [x] Supabase connection  
+- [x] Railway deployment
+- [x] GitHub integration
+- [x] Basic video upload endpoint
+- [x] Health monitoring
+- [x] API documentation
+- [x] Database schema with RLS
+- [x] Static file serving
+- [x] Landing page
 
-### Phase 2: Video Processing
+### Phase 2: Video Processing (CURRENT)
+- [ ] Chunked upload for large files
+- [ ] Supabase Storage integration
 - [ ] HLS conversion pipeline
+- [ ] FFmpeg integration
 - [ ] Streaming endpoints
-- [ ] Frontend player
-- [ ] Upload interface
+- [ ] Video metadata extraction
+- [ ] Thumbnail generation
+- [ ] Progress tracking
 
 ### Phase 3: ML Detection
 - [ ] YOLOv8 integration
-- [ ] Event detection
+- [ ] Player/puck detection
+- [ ] Event detection (goals, shots)
 - [ ] Referee gesture detection
-- [ ] Gemini enhancement
+- [ ] Gemini Flash enhancement
+- [ ] Confidence scoring
 
 ### Phase 4: Review System
+- [ ] Next.js frontend
+- [ ] Video player component
+- [ ] Event timeline UI
 - [ ] Event verification UI
 - [ ] Training data export
 - [ ] Accuracy metrics
 
-### Phase 5: Multi-Tenancy
+### Phase 5: Production Features
+- [ ] Authentication (Supabase Auth)
 - [ ] Organization management
 - [ ] User roles (RBAC)
 - [ ] Usage quotas
+- [ ] Rate limiting
+- [ ] Monitoring/logging
 
 ---
 
@@ -430,10 +447,22 @@ Please help fix this issue following our project standards.
 
 ---
 
+## 🆕 Patterns & Standards Added in Phase 1
+- **Static File Serving**: Use FastAPI's `StaticFiles` mount for assets
+- **HTML Templates**: Store in `app/templates/` directory
+- **Error Handling**: Always return `ServiceResponse` with success/error
+- **Environment Variables**: Never hardcode, always use `settings` from config
+- **Git Workflow**: Feature branches → develop → main (never direct to main)
+- **Railway Deployment**: Use both railway.toml and Procfile for flexibility
+- **Python Version**: Specify in runtime.txt for Railway
+- **Dependencies**: Keep requirements.txt at root AND in backend/
+
 ## 🔄 Update Log
-- [2024-01-28]: Initial configuration
-- [Date]: Added [feature/pattern]
-- [Date]: Updated [section]
+- [2024-08-28]: Initial configuration and Phase 1 completion
+- [2024-08-28]: Added static file serving pattern for assets
+- [2024-08-28]: Updated checklist with Phase 1 completion
+- [2024-08-28]: Added new patterns discovered during implementation
+- [2024-08-28]: Reorganized phases for better progression
 
 <!-- End of Claude Code Configuration -->
 <!-- Include this file at the start of every Claude Code session -->
