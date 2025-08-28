@@ -81,7 +81,7 @@ async def upload_video(
         'organization_id': org_id,
         'filename': file.filename,
         'file_size': file_size,
-        'status': 'uploading'
+        'status': 'uploaded'
     }
     
     result = supabase.table('videos').insert(video_data).execute()
@@ -163,13 +163,17 @@ async def init_chunked_upload(
     session_id = str(uuid4())
     video_id = str(uuid4())
     
-    # Create video record
+    # Create video record  
+    storage_path = f"videos/{org_id}/{video_id}/original.mp4"
     video_data = {
         'id': video_id,
-        'organization_id': org_id,
+        'organization_id': org_id,  # Keep as text for backwards compatibility
         'filename': filename,
-        'file_size': file_size_int,
-        'status': 'uploading',
+        'original_filename': filename,
+        'storage_path': storage_path,
+        'file_size_bytes': file_size_int,  # Use correct column name
+        'status': 'uploaded',
+        'uploaded_at': 'now()',
         'metadata': {
             'session_id': session_id,
             'total_chunks': total_chunks_int,
