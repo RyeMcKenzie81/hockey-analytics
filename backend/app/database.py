@@ -16,6 +16,13 @@ class SupabaseClient:
                 logger.info(f"Initializing Supabase client with URL: {settings.SUPABASE_URL[:30]}...")
                 logger.info(f"Railway environment: {settings.RAILWAY_ENVIRONMENT}")
                 
+                # Log package versions to debug Railway vs local differences
+                import supabase
+                import gotrue
+                import httpx
+                import storage3
+                logger.info(f"Package versions - supabase: {supabase.__version__}, gotrue: {gotrue.__version__}, httpx: {httpx.__version__}, storage3: {storage3.__version__}")
+                
                 # Check and temporarily clear proxy environment variables
                 import os
                 proxy_vars = {k: v for k, v in os.environ.items() if 'proxy' in k.lower()}
