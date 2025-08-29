@@ -43,7 +43,9 @@ export function useWebSocket(
       return
     }
 
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
+    // Determine WebSocket URL based on API URL
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    const wsUrl = apiUrl.replace(/^http/, 'ws').replace(/^https/, 'wss')
     const ws = new WebSocket(`${wsUrl}/api/videos/ws/${videoId}`)
     
     ws.onopen = () => {

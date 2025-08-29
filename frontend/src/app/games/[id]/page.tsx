@@ -131,18 +131,24 @@ export default function GamePage() {
               
               {video.metadata && (
                 <dl className="space-y-3">
-                  <div>
-                    <dt className="text-sm text-gray-400">Duration</dt>
-                    <dd className="text-lg">{Math.floor(video.metadata.duration / 60)}:{String(Math.floor(video.metadata.duration % 60)).padStart(2, '0')}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm text-gray-400">Resolution</dt>
-                    <dd className="text-lg">{video.metadata.resolution}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm text-gray-400">Frame Rate</dt>
-                    <dd className="text-lg">{video.metadata.fps.toFixed(2)} fps</dd>
-                  </div>
+                  {video.metadata.duration && (
+                    <div>
+                      <dt className="text-sm text-gray-400">Duration</dt>
+                      <dd className="text-lg">{Math.floor(video.metadata.duration / 60)}:{String(Math.floor(video.metadata.duration % 60)).padStart(2, '0')}</dd>
+                    </div>
+                  )}
+                  {video.metadata.resolution && (
+                    <div>
+                      <dt className="text-sm text-gray-400">Resolution</dt>
+                      <dd className="text-lg">{video.metadata.resolution}</dd>
+                    </div>
+                  )}
+                  {video.metadata.fps && (
+                    <div>
+                      <dt className="text-sm text-gray-400">Frame Rate</dt>
+                      <dd className="text-lg">{video.metadata.fps.toFixed(2)} fps</dd>
+                    </div>
+                  )}
                 </dl>
               )}
               
