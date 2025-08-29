@@ -339,28 +339,36 @@ async def complete_upload(
             'metadata': metadata
         }).eq('id', video_id).execute()
         
-        # Process video for HLS - works for both single and chunked storage
-        # The assembled_path file exists locally regardless of storage type
-        try:
-            logger.info(f"Starting HLS conversion for video {video_id}")
-            await processor.convert_to_hls(video_id, org_id, str(assembled_path))
-            
-            # For chunked storage, clean up chunks after HLS is created
-            if metadata.get('storage_type') == 'chunked':
-                logger.info(f"Cleaning up chunks for video {video_id} after HLS conversion")
-                for i in range(total_chunks):
-                    chunk_path = f"{org_id}/{video_id}/chunks/chunk_{i:04d}.tmp"
-                    try:
-                        supabase.storage.from_('videos').remove([chunk_path])
-                    except:
-                        pass  # Ignore cleanup errors
-        except Exception as hls_error:
-            logger.error(f"HLS conversion failed for {video_id}: {hls_error}")
-            # Still mark as processed since we have the video stored
-            supabase.table('videos').update({
-                'status': 'processed',
-                'metadata': metadata
-            }).eq('id', video_id).execute()
+        # Start HLS processing in background to avoid timeout
+        import asyncio
+        
+        async def process_hls_background():
+            try:
+                logger.info(f"Starting HLS conversion for video {video_id} in background")
+                await processor.convert_to_hls(video_id, org_id, str(assembled_path))
+                
+                # For chunked storage, clean up chunks after HLS is created
+                if metadata.get('storage_type') == 'chunked':
+                    logger.info(f"Cleaning up chunks for video {video_id} after HLS conversion")
+                    for i in range(total_chunks):
+                        chunk_path = f"{org_id}/{video_id}/chunks/chunk_{i:04d}.tmp"
+                        try:
+                            supabase.storage.from_('videos').remove([chunk_path])
+                        except:
+                            pass  # Ignore cleanup errors
+                            
+                logger.info(f"HLS conversion completed for video {video_id}")
+            except Exception as hls_error:
+                logger.error(f"HLS conversion failed for {video_id}: {hls_error}")
+                # Update status to indicate error
+                supabase.table('videos').update({
+                    'status': 'failed',
+                    'metadata': metadata
+                }).eq('id', video_id).execute()
+        
+        # Create background task for HLS processing
+        asyncio.create_task(process_hls_background())
+        logger.info(f"HLS processing started in background for video {video_id}")
         
     except Exception as e:
         logger.error(f"Failed to assemble chunks: {e}")
