@@ -56,7 +56,7 @@ export default function GamePage() {
   
   useEffect(() => {
     fetchVideo()
-  }, [videoId])
+  }, [videoId]) // eslint-disable-line react-hooks/exhaustive-deps
   
   if (loading) {
     return (
