@@ -222,7 +222,7 @@ class VideoProcessor:
                 hls_paths = await self.upload_hls_files(video_id, org_id, output_dir)
                 
                 # Update database with HLS URL
-                await self.update_video_status(video_id, 'ready', {
+                await self.update_video_status(video_id, 'processed', {
                     'hls_manifest': f"videos/{org_id}/{video_id}/hls/master.m3u8"
                 })
                 

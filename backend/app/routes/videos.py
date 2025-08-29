@@ -120,8 +120,8 @@ async def stream_video(
         raise HTTPException(404, "Video not found")
     
     video = result.data[0]
-    if video['status'] != 'ready':
-        raise HTTPException(400, f"Video is {video['status']}, not ready for streaming")
+    if video['status'] != 'processed':
+        raise HTTPException(400, f"Video is {video['status']}, not processed for streaming")
     
     streaming = StreamingService(supabase)
     return await streaming.stream_video_segment(
@@ -346,13 +346,13 @@ async def complete_upload(
             # For chunked storage, we'll need a different processing approach
             logger.info(f"Video {video_id} stored as chunks - HLS conversion from chunks not yet implemented")
             supabase.table('videos').update({
-                'status': 'ready',
+                'status': 'processed',  # Changed from 'ready' to valid status
                 'metadata': metadata
             }).eq('id', video_id).execute()
         
     except Exception as e:
         logger.error(f"Failed to assemble chunks: {e}")
-        supabase.table('videos').update({'status': 'error', 'error': str(e)}).eq('id', video_id).execute()
+        supabase.table('videos').update({'status': 'failed'}).eq('id', video_id).execute()
         raise HTTPException(500, f"Failed to assemble video: {str(e)}")
     
     return {
