@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import axios from 'axios'
 import { VideoPlayer } from '@/components/VideoPlayer'
@@ -55,11 +55,18 @@ export default function GamePage() {
           if (!prev) return null
           // Only update if status actually changed
           if (prev.status !== message.status) {
-            return { ...prev, status: message.status as VideoData['status'], metadata: message.metadata || prev.metadata }
+            return { 
+              ...prev, 
+              status: message.status as VideoData['status'],
+              metadata: message.metadata ? { ...prev.metadata, ...message.metadata } : prev.metadata
+            }
           }
           // Update metadata if provided
-          if (message.metadata) {
-            return { ...prev, metadata: { ...prev.metadata, ...message.metadata } }
+          if (message.metadata && prev.metadata) {
+            return { 
+              ...prev, 
+              metadata: { ...prev.metadata, ...message.metadata }
+            }
           }
           return prev
         })
