@@ -71,7 +71,7 @@ class StreamingService:
             # Determine content type
             if filename.endswith('.m3u8'):
                 content_type = "application/x-mpegURL"
-                cache_control = 'max-age=10'  # Short cache for manifests
+                cache_control = 'no-cache'  # Don't cache manifests during debugging
             elif filename.endswith('.ts'):
                 content_type = "video/MP2T"
                 cache_control = 'max-age=3600'  # Longer cache for segments
@@ -87,14 +87,23 @@ class StreamingService:
                 response = await client.get(file_url)
                 response.raise_for_status()
                 
+                content = response.content
+                
+                # For m3u8 files, we might need to rewrite URLs if they're relative
+                # But since we're serving through the same base path, relative URLs should work
+                # Log the content for debugging
+                if filename.endswith('.m3u8'):
+                    logger.debug(f"M3U8 content for {filename}: {content[:500].decode('utf-8', errors='ignore')}")
+                
                 return Response(
-                    content=response.content,
+                    content=content,
                     media_type=content_type,
                     headers={
                         'Cache-Control': cache_control,
                         'Access-Control-Allow-Origin': '*',
                         'Access-Control-Allow-Methods': 'GET, OPTIONS',
-                        'Access-Control-Allow-Headers': 'Range'
+                        'Access-Control-Allow-Headers': 'Range',
+                        'Content-Type': content_type  # Explicitly set Content-Type
                     }
                 )
                 

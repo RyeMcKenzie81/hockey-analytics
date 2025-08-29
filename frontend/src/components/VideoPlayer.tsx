@@ -49,12 +49,15 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         })
         
         hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error('HLS error:', data.type, data.details, data)
+          
           if (data.fatal) {
             console.error('HLS fatal error:', data)
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 console.log('Fatal network error, attempting to recover')
-                hls.startLoad()
+                // Don't auto-recover, let user retry
+                onError?.(`Network error: ${data.details}`)
                 break
               case Hls.ErrorTypes.MEDIA_ERROR:
                 console.log('Fatal media error, attempting to recover')
@@ -62,11 +65,22 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 break
               default:
                 console.error('Fatal error, cannot recover')
-                onError?.('Fatal playback error occurred')
-                hls.destroy()
+                onError?.(`Playback error: ${data.details}`)
                 break
             }
+          } else {
+            // Non-fatal errors
+            console.warn('Non-fatal HLS error:', data.details)
           }
+        })
+        
+        // Add more event listeners for debugging
+        hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+          console.log('Media attached successfully')
+        })
+        
+        hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+          console.log('Fragment loaded:', data.frag.sn, 'duration:', data.frag.duration)
         })
         
         hlsRef.current = hls
