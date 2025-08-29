@@ -1,0 +1,11 @@
+# Ignore backend files when building frontend
+../backend/
+../venv/
+../*.txt
+../*.md
+../*.toml
+../infrastructure/
+../docs/
+../supabase/
+../.git/
+../.gitignore
