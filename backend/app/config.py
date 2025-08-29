@@ -23,7 +23,13 @@ class Settings(BaseSettings):
     APP_NAME: str = "Hockey Analytics API"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: list[str] = [
+        "*",
+        "http://localhost:3000",
+        "http://localhost:3003",
+        "https://frontend-production-2b5b.up.railway.app",
+        "https://hockey-analytics-frontend-production.up.railway.app"
+    ]
     
     class Config:
         env_file = ".env"
