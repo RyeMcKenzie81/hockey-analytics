@@ -110,7 +110,7 @@ export default function GamePage() {
   
   // Poll for updates when video is processing
   useEffect(() => {
-    if (video?.status === 'processing') {
+    if (video?.status === 'processing' || video?.status === 'uploading') {
       const interval = setInterval(() => {
         fetchVideo()
       }, 3000) // Poll every 3 seconds

@@ -20,14 +20,19 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     useEffect(() => {
       if (!videoRef.current) return
 
+      // Construct HLS URL if not provided
+      const hlsUrl = url || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/videos/${videoId}/hls/master.m3u8`
+      
+      // If HLS is already initialized with the same URL, don't reinitialize
+      if (hlsRef.current && hlsRef.current.url === hlsUrl) {
+        return
+      }
+
       // Clean up previous HLS instance
       if (hlsRef.current) {
         hlsRef.current.destroy()
         hlsRef.current = null
       }
-
-      // Construct HLS URL if not provided
-      const hlsUrl = url || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/videos/${videoId}/hls/master.m3u8`
 
       if (Hls.isSupported()) {
         const hls = new Hls({
