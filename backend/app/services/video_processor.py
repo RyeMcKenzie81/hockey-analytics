@@ -281,8 +281,18 @@ class VideoProcessor:
         """Update video status in database"""
         
         update_data = {'status': status}
+        
+        # If metadata provided, merge with existing metadata
         if metadata:
-            update_data['metadata'] = metadata
+            # Fetch current video to get existing metadata
+            current = self.supabase.table('videos').select('metadata').eq('id', video_id).execute()
+            if current.data and len(current.data) > 0:
+                existing_metadata = current.data[0].get('metadata', {}) or {}
+                # Merge new metadata with existing
+                existing_metadata.update(metadata)
+                update_data['metadata'] = existing_metadata
+            else:
+                update_data['metadata'] = metadata
         
         try:
             # Update the videos table
