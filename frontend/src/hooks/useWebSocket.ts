@@ -99,19 +99,24 @@ export function useWebSocket(
       onClose?.()
       
       // Only attempt to reconnect if enabled and component is still mounted
-      if (reconnect && !isUnmountedRef.current && !event.wasClean) {
+      // Add maximum reconnection attempts to prevent resource exhaustion
+      const maxReconnectAttempts = 10
+      
+      if (reconnect && !isUnmountedRef.current && !event.wasClean && reconnectAttemptsRef.current < maxReconnectAttempts) {
         reconnectAttemptsRef.current += 1
         
         // Use exponential backoff with max delay of 30 seconds
         const delay = Math.min(reconnectInterval * Math.pow(1.5, reconnectAttemptsRef.current - 1), 30000)
         
-        console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`)
+        console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`)
         
         reconnectTimeoutRef.current = setTimeout(() => {
           if (!isUnmountedRef.current) {
             connect()
           }
         }, delay)
+      } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        console.error(`WebSocket max reconnection attempts (${maxReconnectAttempts}) reached for video ${videoId}`)
       }
     }
     
