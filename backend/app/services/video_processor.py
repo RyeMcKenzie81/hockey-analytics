@@ -168,9 +168,12 @@ class VideoProcessor:
             for preset in quality_presets:
                 output_name = preset['name']
                 
+                # Split resolution into width and height for FFmpeg filters
+                width, height = preset['resolution'].split('x')
+                
                 cmd = [
                     'ffmpeg', '-i', input_path,
-                    '-vf', f"scale={preset['resolution']}:force_original_aspect_ratio=decrease,pad={preset['resolution']}:(ow-iw)/2:(oh-ih)/2",
+                    '-vf', f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2",
                     '-c:v', 'h264',
                     '-preset', 'fast',
                     '-b:v', preset['bitrate'],
