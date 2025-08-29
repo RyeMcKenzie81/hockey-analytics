@@ -12,12 +12,15 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 interface VideoData {
   id: string
   filename: string
-  status: 'uploading' | 'processing' | 'ready' | 'error'
+  status: 'uploading' | 'processing' | 'processed' | 'failed'
   metadata?: {
     duration: number
     fps: number
     resolution: string
     hls_manifest?: string
+    processing_progress?: number
+    processing_stage?: string
+    processing_quality?: string
   }
   error?: string
 }
