@@ -214,7 +214,10 @@ export default function GamePage() {
                   ref={videoRef}
                   videoId={video.id}
                   className="w-full rounded-lg"
-                  onTimeUpdate={(time) => setCurrentTime(time)}
+                  onTimeUpdate={useMemo(() => (time: number) => {
+                    // Only update if time changed significantly (> 0.5 seconds)
+                    setCurrentTime(prev => Math.abs(prev - time) > 0.5 ? time : prev)
+                  }, [])}
                   onError={(error) => setError(error)}
                 />
                 <EventTimeline

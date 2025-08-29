@@ -17,6 +17,9 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const internalRef = useRef<HTMLVideoElement>(null)
     const videoRef = (ref as React.RefObject<HTMLVideoElement>) || internalRef
 
+    // Store the URL in a ref to prevent re-initialization
+    const currentUrlRef = useRef<string>('')
+    
     useEffect(() => {
       console.log('VideoPlayer useEffect triggered for video:', videoId)
       if (!videoRef.current) {
@@ -29,10 +32,12 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       console.log('HLS URL:', hlsUrl)
       
       // If HLS is already initialized with the same URL, don't reinitialize
-      if (hlsRef.current && hlsRef.current.url === hlsUrl) {
+      if (currentUrlRef.current === hlsUrl && hlsRef.current) {
         console.log('HLS already initialized with same URL, skipping')
         return
       }
+      
+      currentUrlRef.current = hlsUrl
 
       // Clean up previous HLS instance
       if (hlsRef.current) {
