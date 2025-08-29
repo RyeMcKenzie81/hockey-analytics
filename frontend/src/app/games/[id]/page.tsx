@@ -118,6 +118,18 @@ export default function GamePage() {
       videoRef.current.currentTime = event.timestamp
     }
   }
+  
+  // Memoize the time update handler to prevent re-renders
+  const handleTimeUpdate = useMemo(() => {
+    let lastTime = 0
+    return (time: number) => {
+      // Only update if time changed significantly (> 0.5 seconds)
+      if (Math.abs(lastTime - time) > 0.5) {
+        lastTime = time
+        setCurrentTime(time)
+      }
+    }
+  }, [])
 
   const verifyEvent = async (eventId: string, verified: boolean) => {
     // Update local state
@@ -214,10 +226,7 @@ export default function GamePage() {
                   ref={videoRef}
                   videoId={video.id}
                   className="w-full rounded-lg"
-                  onTimeUpdate={useMemo(() => (time: number) => {
-                    // Only update if time changed significantly (> 0.5 seconds)
-                    setCurrentTime(prev => Math.abs(prev - time) > 0.5 ? time : prev)
-                  }, [])}
+                  onTimeUpdate={handleTimeUpdate}
                   onError={(error) => setError(error)}
                 />
                 <EventTimeline
