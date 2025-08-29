@@ -165,8 +165,25 @@ class VideoProcessor:
             
             # Convert each quality level
             playlists = []
-            for preset in quality_presets:
+            total_qualities = len(quality_presets)
+            
+            for idx, preset in enumerate(quality_presets, 1):
                 output_name = preset['name']
+                
+                # Update progress in database
+                progress = int((idx - 1) / total_qualities * 100)
+                progress_metadata = {
+                    'processing_progress': progress,
+                    'processing_stage': f'Converting {output_name}',
+                    'processing_quality': f'{idx}/{total_qualities}'
+                }
+                
+                # Fetch and merge with existing metadata
+                current = self.supabase.table('videos').select('metadata').eq('id', video_id).execute()
+                if current.data and len(current.data) > 0:
+                    existing_metadata = current.data[0].get('metadata', {}) or {}
+                    existing_metadata.update(progress_metadata)
+                    self.supabase.table('videos').update({'metadata': existing_metadata}).eq('id', video_id).execute()
                 
                 # Split resolution into width and height for FFmpeg filters
                 width, height = preset['resolution'].split('x')
@@ -188,7 +205,7 @@ class VideoProcessor:
                     str(output_dir / f'{output_name}.m3u8')
                 ]
                 
-                logger.info(f"Converting to {output_name}...")
+                logger.info(f"Converting to {output_name}... ({idx}/{total_qualities})")
                 process = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdout=asyncio.subprocess.PIPE,
@@ -221,12 +238,27 @@ class VideoProcessor:
                 with open(master_path, 'w') as f:
                     f.write(master_content)
                 
+                # Update progress to show uploading HLS files
+                upload_metadata = {
+                    'processing_progress': 90,
+                    'processing_stage': 'Uploading HLS files',
+                    'processing_quality': 'Finalizing...'
+                }
+                current = self.supabase.table('videos').select('metadata').eq('id', video_id).execute()
+                if current.data and len(current.data) > 0:
+                    existing_metadata = current.data[0].get('metadata', {}) or {}
+                    existing_metadata.update(upload_metadata)
+                    self.supabase.table('videos').update({'metadata': existing_metadata}).eq('id', video_id).execute()
+                
                 # Upload HLS files to Supabase
                 hls_paths = await self.upload_hls_files(video_id, org_id, output_dir)
                 
-                # Update database with HLS URL
+                # Update database with HLS URL and complete status
                 await self.update_video_status(video_id, 'processed', {
-                    'hls_manifest': f"videos/{org_id}/{video_id}/hls/master.m3u8"
+                    'hls_manifest': f"videos/{org_id}/{video_id}/hls/master.m3u8",
+                    'processing_progress': 100,
+                    'processing_stage': 'Complete',
+                    'processing_quality': 'All qualities ready'
                 })
                 
                 return hls_paths

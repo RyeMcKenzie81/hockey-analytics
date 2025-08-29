@@ -104,10 +104,21 @@ export default function GamePage() {
   useEffect(() => {
     fetchVideo()
   }, [videoId]) // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Poll for updates when video is processing
+  useEffect(() => {
+    if (video?.status === 'processing') {
+      const interval = setInterval(() => {
+        fetchVideo()
+      }, 3000) // Poll every 3 seconds
+      
+      return () => clearInterval(interval)
+    }
+  }, [video?.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mock events for Phase 2 demo (will be replaced with real events in Phase 3)
   useEffect(() => {
-    if (video?.status === 'ready' && video.metadata?.duration) {
+    if (video?.status === 'processed' && video.metadata?.duration) {
       // Generate some sample events for demonstration
       const sampleEvents: Event[] = [
         { id: '1', timestamp: 120, event_type: 'goal', confidence: 0.95, verified: true },
@@ -146,9 +157,9 @@ export default function GamePage() {
           <h1 className="text-3xl font-bold mb-2">{video.filename}</h1>
           <div className="flex items-center gap-4">
             <span className={`px-3 py-1 rounded-full text-sm ${
-              video.status === 'ready' ? 'bg-green-600' :
+              video.status === 'processed' ? 'bg-green-600' :
               video.status === 'processing' ? 'bg-yellow-600' :
-              video.status === 'error' ? 'bg-red-600' :
+              video.status === 'failed' ? 'bg-red-600' :
               'bg-gray-600'
             }`}>
               {video.status}
@@ -161,7 +172,7 @@ export default function GamePage() {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            {video.status === 'ready' && video.metadata?.hls_manifest ? (
+            {video.status === 'processed' && video.metadata?.hls_manifest ? (
               <>
                 <VideoPlayer 
                   ref={videoRef}
@@ -180,13 +191,31 @@ export default function GamePage() {
               </>
             ) : video.status === 'processing' ? (
               <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
-                <div className="text-center">
+                <div className="text-center w-full max-w-md px-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                  <p className="text-gray-400">Video is being processed...</p>
+                  <p className="text-gray-400 mb-4">Video is being processed...</p>
+                  
+                  {video.metadata?.processing_progress !== undefined && (
+                    <>
+                      <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${video.metadata.processing_progress}%` }}
+                        />
+                      </div>
+                      <p className="text-sm text-gray-500 mb-1">
+                        {video.metadata.processing_stage || 'Processing...'}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {video.metadata.processing_quality || ''}
+                      </p>
+                    </>
+                  )}
+                  
                   <p className="text-sm text-gray-500 mt-2">This may take a few minutes</p>
                 </div>
               </div>
-            ) : video.status === 'error' ? (
+            ) : video.status === 'failed' ? (
               <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
                 <div className="text-center">
                   <p className="text-red-400">Failed to process video</p>
