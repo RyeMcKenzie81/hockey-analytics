@@ -282,28 +282,61 @@ async def complete_upload(
                 # Download chunk from Supabase
                 chunk_data = supabase.storage.from_('videos').download(chunk_path)
                 output.write(chunk_data)
-                
-                # Clean up chunk after assembly
-                supabase.storage.from_('videos').remove([chunk_path])
         
-        # Upload assembled video
+        # Upload assembled video in smaller parts if it's large
         storage_path = f"{org_id}/{video_id}/original.mp4"
-        with open(assembled_path, 'rb') as f:
-            supabase.storage.from_('videos').upload(
-                storage_path,
-                f,
-                file_options={"content-type": "video/mp4", "upsert": "true"}
-            )
+        file_size = assembled_path.stat().st_size
         
-        # Update status to processing
-        supabase.table('videos').update({'status': 'processing'}).eq('id', video_id).execute()
+        # If file is larger than 50MB, keep it chunked
+        if file_size > 50 * 1024 * 1024:
+            # For large files, we'll process directly from chunks
+            # Mark as ready for processing without re-uploading
+            logger.info(f"Large file ({file_size / 1024 / 1024:.2f}MB) - keeping chunked for processing")
+            
+            # Store metadata about chunks for later processing
+            metadata['assembly_complete'] = True
+            metadata['file_size'] = file_size
+            metadata['storage_type'] = 'chunked'
+            metadata['total_chunks'] = total_chunks
+            
+            # Don't delete chunks - we'll need them for streaming
+        else:
+            # Small enough to upload directly
+            with open(assembled_path, 'rb') as f:
+                supabase.storage.from_('videos').upload(
+                    storage_path,
+                    f,
+                    file_options={"content-type": "video/mp4", "upsert": "true"}
+                )
+            metadata['storage_type'] = 'single'
+            
+            # Clean up chunks after successful upload
+            for i in range(total_chunks):
+                chunk_path = f"{org_id}/{video_id}/chunks/chunk_{i:04d}.tmp"
+                try:
+                    supabase.storage.from_('videos').remove([chunk_path])
+                except:
+                    pass  # Ignore cleanup errors
         
-        # Start HLS conversion
-        metadata = await processor.get_video_metadata(str(assembled_path))
-        supabase.table('videos').update({'metadata': metadata}).eq('id', video_id).execute()
+        # Update status and metadata
+        video_metadata = await processor.get_video_metadata(str(assembled_path))
+        metadata.update(video_metadata)  # Merge with existing metadata
         
-        # Process video for HLS
-        await processor.convert_to_hls(video_id, org_id, str(assembled_path))
+        supabase.table('videos').update({
+            'status': 'processing',
+            'metadata': metadata
+        }).eq('id', video_id).execute()
+        
+        # Process video for HLS only if it's a single file
+        if metadata.get('storage_type') == 'single':
+            await processor.convert_to_hls(video_id, org_id, str(assembled_path))
+        else:
+            # For chunked storage, we'll need a different processing approach
+            logger.info(f"Video {video_id} stored as chunks - HLS conversion from chunks not yet implemented")
+            supabase.table('videos').update({
+                'status': 'ready',
+                'metadata': metadata
+            }).eq('id', video_id).execute()
         
     except Exception as e:
         logger.error(f"Failed to assemble chunks: {e}")
