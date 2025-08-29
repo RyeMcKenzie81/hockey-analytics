@@ -1,0 +1,13 @@
+# Backend-specific nixpacks configuration
+[phases.setup]
+nixPkgs = ["python311", "gcc"]
+aptPkgs = ["ffmpeg"]
+
+[phases.install]
+cmds = ["python -m venv /opt/venv && . /opt/venv/bin/activate && pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
