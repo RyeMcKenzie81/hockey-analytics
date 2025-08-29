@@ -53,21 +53,27 @@ export default function GamePage() {
       if (message.type === 'status' && message.status) {
         setVideo(prev => {
           if (!prev) return null
-          // Only update if status actually changed
-          if (prev.status !== message.status) {
-            return { 
-              ...prev, 
-              status: message.status as VideoData['status'],
-              metadata: message.metadata ? { ...prev.metadata, ...message.metadata } : prev.metadata
-            }
+          
+          // Create updated video object
+          const updated: VideoData = {
+            ...prev,
+            status: message.status as VideoData['status']
           }
+          
           // Update metadata if provided
           if (message.metadata && prev.metadata) {
-            return { 
-              ...prev, 
-              metadata: { ...prev.metadata, ...message.metadata }
-            }
+            updated.metadata = {
+              ...prev.metadata,
+              ...message.metadata
+            } as VideoData['metadata']
           }
+          
+          // Only return updated if something changed
+          if (prev.status !== updated.status || 
+              JSON.stringify(prev.metadata) !== JSON.stringify(updated.metadata)) {
+            return updated
+          }
+          
           return prev
         })
       }
