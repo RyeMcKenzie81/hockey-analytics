@@ -198,9 +198,13 @@ class VideoProcessor:
                     '-bufsize', preset['bufsize'],
                     '-c:a', 'aac',
                     '-b:a', preset['audio_bitrate'],
+                    '-g', '48',  # Set GOP size for consistent keyframes
+                    '-keyint_min', '48',  # Minimum keyframe interval
+                    '-sc_threshold', '0',  # Disable scene change detection
                     '-f', 'hls',
                     '-hls_time', str(self.chunk_duration),
                     '-hls_list_size', '0',
+                    '-hls_flags', 'split_by_time',  # Force split by time, not keyframes
                     '-hls_segment_filename', str(output_dir / f'{output_name}_%03d.ts'),
                     str(output_dir / f'{output_name}.m3u8')
                 ]

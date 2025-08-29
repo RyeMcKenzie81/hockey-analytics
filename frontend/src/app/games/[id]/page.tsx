@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import axios from 'axios'
 import { VideoPlayer } from '@/components/VideoPlayer'
@@ -64,9 +64,17 @@ export default function GamePage() {
   
   const fetchVideo = async () => {
     try {
-      setLoading(true)
       const response = await axios.get(`${API_URL}/api/videos/${videoId}`)
-      setVideo(response.data)
+      
+      // Only update state if something actually changed
+      setVideo(prev => {
+        // If status or metadata changed, update
+        if (!prev || prev.status !== response.data.status || 
+            JSON.stringify(prev.metadata) !== JSON.stringify(response.data.metadata)) {
+          return response.data
+        }
+        return prev  // No changes, keep existing state
+      })
       
       // Only connect WebSocket if video is still processing
       if (response.data.status === 'uploading' || response.data.status === 'processing') {
@@ -74,10 +82,11 @@ export default function GamePage() {
       } else {
         setShouldConnectWS(false)
       }
+      
+      setLoading(false)
     } catch (err) {
       console.error('Failed to fetch video:', err)
       setError('Failed to load video')
-    } finally {
       setLoading(false)
     }
   }
@@ -178,6 +187,7 @@ export default function GamePage() {
             {video.status === 'processed' && video.metadata?.hls_manifest ? (
               <>
                 <VideoPlayer 
+                  key={video.id}  // Add key to force new instance only when video ID changes
                   ref={videoRef}
                   videoId={video.id}
                   className="w-full rounded-lg"
