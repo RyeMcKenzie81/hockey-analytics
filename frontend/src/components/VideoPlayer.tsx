@@ -18,18 +18,25 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const videoRef = (ref as React.RefObject<HTMLVideoElement>) || internalRef
 
     useEffect(() => {
-      if (!videoRef.current) return
+      console.log('VideoPlayer useEffect triggered for video:', videoId)
+      if (!videoRef.current) {
+        console.log('No video element ref')
+        return
+      }
 
       // Construct HLS URL if not provided
       const hlsUrl = url || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/videos/${videoId}/hls/master.m3u8`
+      console.log('HLS URL:', hlsUrl)
       
       // If HLS is already initialized with the same URL, don't reinitialize
       if (hlsRef.current && hlsRef.current.url === hlsUrl) {
+        console.log('HLS already initialized with same URL, skipping')
         return
       }
 
       // Clean up previous HLS instance
       if (hlsRef.current) {
+        console.log('Destroying previous HLS instance')
         hlsRef.current.destroy()
         hlsRef.current = null
       }
