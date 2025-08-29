@@ -57,14 +57,28 @@ hockey-analytics/
 └── .claudecode/        # Project configuration
 ```
 
-## 📋 Current Phase: Phase 1 - Foundation
+## 📋 Project Status
 
-- ✅ FastAPI setup with health check
-- ✅ Supabase database schema
-- ✅ Railway deployment configuration
-- ✅ Multi-tenant architecture foundation
-- ⏳ Basic video upload endpoint
-- ⏳ HLS streaming (Phase 2)
+### ✅ Phase 1 - Foundation (Complete)
+- FastAPI setup with health check
+- Supabase database schema
+- Railway deployment configuration
+- Multi-tenant architecture foundation
+
+### ✅ Phase 2 - Frontend & Streaming (Complete)
+- Next.js frontend with TypeScript
+- Video upload interface (chunked upload for large files)
+- HLS video processing and streaming
+- Interactive event timeline
+- Event list and statistics panel
+- WebSocket real-time updates
+
+See [PHASE2_COMPLETE.md](PHASE2_COMPLETE.md) for details and [TESTING_GUIDE.md](TESTING_GUIDE.md) for testing instructions.
+
+### ⏳ Phase 3 - ML Detection (Next)
+- YOLO v8 for player/puck detection
+- ByteTrack for object tracking
+- Gemini Flash 2.0 for event analysis
 
 ## 🚀 Deployment
 

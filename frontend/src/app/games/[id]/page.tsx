@@ -1,9 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import axios from 'axios'
 import { VideoPlayer } from '@/components/VideoPlayer'
+import { EventTimeline } from '@/components/EventTimeline'
+import { EventList } from '@/components/EventList'
+import { StatsPanel } from '@/components/StatsPanel'
 import { useWebSocket } from '@/hooks/useWebSocket'
 
 interface VideoData {
@@ -19,10 +22,22 @@ interface VideoData {
   error?: string
 }
 
+interface Event {
+  id: string
+  timestamp: number
+  event_type: string
+  confidence: number
+  verified?: boolean
+  data?: any
+}
+
 export default function GamePage() {
   const params = useParams()
   const videoId = params.id as string
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [video, setVideo] = useState<VideoData | null>(null)
+  const [events, setEvents] = useState<Event[]>([])
+  const [currentTime, setCurrentTime] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -54,9 +69,49 @@ export default function GamePage() {
     }
   }
   
+  const jumpToEvent = (event: Event) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = event.timestamp
+    }
+  }
+
+  const verifyEvent = async (eventId: string, verified: boolean) => {
+    // Update local state
+    setEvents(prevEvents => 
+      prevEvents.map(e => 
+        e.id === eventId ? { ...e, verified } : e
+      )
+    )
+    
+    // TODO: Send verification to backend
+    try {
+      await axios.patch(`${API_URL}/api/events/${eventId}`, { verified })
+    } catch (err) {
+      console.error('Failed to verify event:', err)
+    }
+  }
+
   useEffect(() => {
     fetchVideo()
   }, [videoId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mock events for Phase 2 demo (will be replaced with real events in Phase 3)
+  useEffect(() => {
+    if (video?.status === 'ready' && video.metadata?.duration) {
+      // Generate some sample events for demonstration
+      const sampleEvents: Event[] = [
+        { id: '1', timestamp: 120, event_type: 'goal', confidence: 0.95, verified: true },
+        { id: '2', timestamp: 245, event_type: 'shot', confidence: 0.88 },
+        { id: '3', timestamp: 380, event_type: 'penalty', confidence: 0.92 },
+        { id: '4', timestamp: 520, event_type: 'save', confidence: 0.85 },
+        { id: '5', timestamp: 680, event_type: 'faceoff', confidence: 0.90 },
+        { id: '6', timestamp: 850, event_type: 'shot', confidence: 0.87 },
+        { id: '7', timestamp: 1020, event_type: 'goal', confidence: 0.93, verified: true },
+      ].filter(e => e.timestamp < (video.metadata?.duration || 0))
+      
+      setEvents(sampleEvents)
+    }
+  }, [video])
   
   if (loading) {
     return (
@@ -97,12 +152,22 @@ export default function GamePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             {video.status === 'ready' && video.metadata?.hls_manifest ? (
-              <VideoPlayer 
-                videoId={video.id}
-                className="w-full rounded-lg"
-                onTimeUpdate={(time) => console.log('Current time:', time)}
-                onError={(error) => setError(error)}
-              />
+              <>
+                <VideoPlayer 
+                  ref={videoRef}
+                  videoId={video.id}
+                  className="w-full rounded-lg"
+                  onTimeUpdate={(time) => setCurrentTime(time)}
+                  onError={(error) => setError(error)}
+                />
+                <EventTimeline
+                  events={events}
+                  videoDuration={video.metadata?.duration || 0}
+                  currentTime={currentTime}
+                  onEventClick={jumpToEvent}
+                  className="mt-4"
+                />
+              </>
             ) : video.status === 'processing' ? (
               <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
                 <div className="text-center">
@@ -125,48 +190,13 @@ export default function GamePage() {
             )}
           </div>
           
-          <div className="lg:col-span-1">
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Video Information</h2>
-              
-              {video.metadata && (
-                <dl className="space-y-3">
-                  {video.metadata.duration && (
-                    <div>
-                      <dt className="text-sm text-gray-400">Duration</dt>
-                      <dd className="text-lg">{Math.floor(video.metadata.duration / 60)}:{String(Math.floor(video.metadata.duration % 60)).padStart(2, '0')}</dd>
-                    </div>
-                  )}
-                  {video.metadata.resolution && (
-                    <div>
-                      <dt className="text-sm text-gray-400">Resolution</dt>
-                      <dd className="text-lg">{video.metadata.resolution}</dd>
-                    </div>
-                  )}
-                  {video.metadata.fps && (
-                    <div>
-                      <dt className="text-sm text-gray-400">Frame Rate</dt>
-                      <dd className="text-lg">{video.metadata.fps.toFixed(2)} fps</dd>
-                    </div>
-                  )}
-                </dl>
-              )}
-              
-              {!video.metadata && video.status === 'processing' && (
-                <p className="text-gray-400 text-sm">
-                  Video information will appear here once processing is complete.
-                </p>
-              )}
-            </div>
-            
-            {lastMessage && (
-              <div className="bg-gray-800 rounded-lg p-6 mt-4">
-                <h3 className="text-sm font-semibold mb-2 text-gray-400">Latest Update</h3>
-                <pre className="text-xs text-gray-300 overflow-auto">
-                  {JSON.stringify(lastMessage, null, 2)}
-                </pre>
-              </div>
-            )}
+          <div className="lg:col-span-1 space-y-4">
+            <StatsPanel events={events} />
+            <EventList 
+              events={events}
+              onVerify={verifyEvent}
+              onJump={jumpToEvent}
+            />
           </div>
         </div>
       </div>

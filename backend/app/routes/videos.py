@@ -261,13 +261,54 @@ async def complete_upload(
     if len(uploaded_chunks) != total_chunks:
         raise HTTPException(400, f"Missing chunks: {total_chunks - len(uploaded_chunks)} chunks not uploaded")
     
-    # TODO: Implement chunk assembly logic
-    # For now, mark as processing
-    supabase.table('videos').update({'status': 'processing'}).eq('id', video_id).execute()
-    
-    # Queue for processing
+    # Assemble chunks into complete video
     processor = VideoProcessor(supabase)
-    # Note: In production, this would assemble chunks first
+    
+    try:
+        # Create temp directory for assembly
+        import tempfile
+        import os
+        from pathlib import Path
+        
+        temp_dir = Path(f"/tmp/videos/{video_id}")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        assembled_path = temp_dir / "assembled.mp4"
+        
+        # Download and concatenate chunks
+        with open(assembled_path, 'wb') as output:
+            for i in range(total_chunks):
+                chunk_path = f"{org_id}/{video_id}/chunks/chunk_{i:04d}.tmp"
+                
+                # Download chunk from Supabase
+                chunk_data = supabase.storage.from_('videos').download(chunk_path)
+                output.write(chunk_data)
+                
+                # Clean up chunk after assembly
+                supabase.storage.from_('videos').remove([chunk_path])
+        
+        # Upload assembled video
+        storage_path = f"{org_id}/{video_id}/original.mp4"
+        with open(assembled_path, 'rb') as f:
+            supabase.storage.from_('videos').upload(
+                storage_path,
+                f,
+                file_options={"content-type": "video/mp4", "upsert": "true"}
+            )
+        
+        # Update status to processing
+        supabase.table('videos').update({'status': 'processing'}).eq('id', video_id).execute()
+        
+        # Start HLS conversion
+        metadata = await processor.get_video_metadata(str(assembled_path))
+        supabase.table('videos').update({'metadata': metadata}).eq('id', video_id).execute()
+        
+        # Process video for HLS
+        await processor.convert_to_hls(video_id, org_id, str(assembled_path))
+        
+    except Exception as e:
+        logger.error(f"Failed to assemble chunks: {e}")
+        supabase.table('videos').update({'status': 'error', 'error': str(e)}).eq('id', video_id).execute()
+        raise HTTPException(500, f"Failed to assemble video: {str(e)}")
     
     return {
         "video_id": video_id,
