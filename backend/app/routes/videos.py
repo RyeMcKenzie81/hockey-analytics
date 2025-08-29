@@ -339,14 +339,26 @@ async def complete_upload(
             'metadata': metadata
         }).eq('id', video_id).execute()
         
-        # Process video for HLS only if it's a single file
-        if metadata.get('storage_type') == 'single':
+        # Process video for HLS - works for both single and chunked storage
+        # The assembled_path file exists locally regardless of storage type
+        try:
+            logger.info(f"Starting HLS conversion for video {video_id}")
             await processor.convert_to_hls(video_id, org_id, str(assembled_path))
-        else:
-            # For chunked storage, we'll need a different processing approach
-            logger.info(f"Video {video_id} stored as chunks - HLS conversion from chunks not yet implemented")
+            
+            # For chunked storage, clean up chunks after HLS is created
+            if metadata.get('storage_type') == 'chunked':
+                logger.info(f"Cleaning up chunks for video {video_id} after HLS conversion")
+                for i in range(total_chunks):
+                    chunk_path = f"{org_id}/{video_id}/chunks/chunk_{i:04d}.tmp"
+                    try:
+                        supabase.storage.from_('videos').remove([chunk_path])
+                    except:
+                        pass  # Ignore cleanup errors
+        except Exception as hls_error:
+            logger.error(f"HLS conversion failed for {video_id}: {hls_error}")
+            # Still mark as processed since we have the video stored
             supabase.table('videos').update({
-                'status': 'processed',  # Changed from 'ready' to valid status
+                'status': 'processed',
                 'metadata': metadata
             }).eq('id', video_id).execute()
         
