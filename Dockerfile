@@ -1,5 +1,6 @@
 FROM python:3.11-slim
 
+# Force rebuild: 2024-08-29-2250
 # Install system dependencies including FFmpeg
 RUN apt-get update && apt-get install -y \
     ffmpeg \

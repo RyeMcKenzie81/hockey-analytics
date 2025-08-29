@@ -129,7 +129,9 @@ class VideoProcessor:
         return metadata
     
     async def convert_to_hls(self, video_id: str, org_id: str, input_path: str) -> List[str]:
-        """Convert video to HLS format for streaming"""
+        """Convert video to HLS format for streaming
+        Updated: 2024-08-29 22:50 - Fixed HLS segment duration issues
+        """
         
         output_dir = Path(f"/tmp/hls/{video_id}")
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -192,6 +194,8 @@ class VideoProcessor:
                     'ffmpeg', '-i', input_path,
                     '-vf', f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2",
                     '-c:v', 'libx264',  # Use libx264 explicitly
+                    '-profile:v', 'main',  # H.264 profile
+                    '-level', '4.0',  # H.264 level
                     '-preset', 'medium',  # Better quality/speed tradeoff
                     '-crf', '23',  # Constant quality
                     '-b:v', preset['bitrate'],
@@ -200,9 +204,13 @@ class VideoProcessor:
                     '-c:a', 'aac',
                     '-b:a', preset['audio_bitrate'],
                     '-ar', '44100',  # Standard audio sample rate
+                    '-ac', '2',  # Stereo audio
+                    '-force_key_frames', f'expr:gte(t,n_forced*{self.chunk_duration})',  # Force keyframe every segment
                     '-f', 'hls',
                     '-hls_time', str(self.chunk_duration),
                     '-hls_list_size', '0',
+                    '-hls_flags', 'independent_segments',  # Each segment is independent
+                    '-hls_segment_type', 'mpegts',  # Use MPEG-TS segments
                     '-hls_segment_filename', str(output_dir / f'{output_name}_%03d.ts'),
                     str(output_dir / f'{output_name}.m3u8')
                 ]
