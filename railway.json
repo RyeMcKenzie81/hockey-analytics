@@ -9,7 +9,7 @@
           "nixPkgs": ["nodejs_20", "npm-9_x"]
         },
         "install": {
-          "cmds": ["cd frontend && npm ci"]
+          "cmds": ["npm ci"]
         },
         "build": {
           "cmds": ["cd frontend && npm run build"]
