@@ -191,20 +191,18 @@ class VideoProcessor:
                 cmd = [
                     'ffmpeg', '-i', input_path,
                     '-vf', f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2",
-                    '-c:v', 'h264',
-                    '-preset', 'fast',
+                    '-c:v', 'libx264',  # Use libx264 explicitly
+                    '-preset', 'medium',  # Better quality/speed tradeoff
+                    '-crf', '23',  # Constant quality
                     '-b:v', preset['bitrate'],
                     '-maxrate', preset['maxrate'],
                     '-bufsize', preset['bufsize'],
                     '-c:a', 'aac',
                     '-b:a', preset['audio_bitrate'],
-                    '-g', '48',  # Set GOP size for consistent keyframes
-                    '-keyint_min', '48',  # Minimum keyframe interval
-                    '-sc_threshold', '0',  # Disable scene change detection
+                    '-ar', '44100',  # Standard audio sample rate
                     '-f', 'hls',
                     '-hls_time', str(self.chunk_duration),
                     '-hls_list_size', '0',
-                    '-hls_flags', 'split_by_time',  # Force split by time, not keyframes
                     '-hls_segment_filename', str(output_dir / f'{output_name}_%03d.ts'),
                     str(output_dir / f'{output_name}.m3u8')
                 ]

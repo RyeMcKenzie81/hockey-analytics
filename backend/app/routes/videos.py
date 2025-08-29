@@ -386,7 +386,8 @@ async def complete_upload(
 @router.websocket("/ws/{video_id}")
 async def video_websocket(
     websocket: WebSocket,
-    video_id: str
+    video_id: str,
+    supabase: Client = Depends(get_supabase)
 ):
     """WebSocket for real-time video processing updates"""
     
@@ -399,16 +400,36 @@ async def video_websocket(
             "video_id": video_id
         })
         
-        # In production, this would subscribe to Redis pubsub
-        # For now, simulate updates
+        # Poll for actual video status
         while True:
-            # Wait for messages or send periodic status
-            await asyncio.sleep(5)
-            await websocket.send_json({
-                "type": "status",
-                "video_id": video_id,
-                "status": "processing"
-            })
+            # Get current video status from database
+            result = supabase.table('videos').select('status', 'metadata').eq('id', video_id).execute()
+            
+            if result.data and len(result.data) > 0:
+                video = result.data[0]
+                status = video.get('status', 'unknown')
+                metadata = video.get('metadata', {})
+                
+                # Send current status
+                await websocket.send_json({
+                    "type": "status",
+                    "video_id": video_id,
+                    "status": status,
+                    "metadata": metadata
+                })
+                
+                # If video is processed or failed, send final update and close
+                if status in ['processed', 'failed']:
+                    await websocket.send_json({
+                        "type": "ready" if status == "processed" else "error",
+                        "video_id": video_id,
+                        "status": status
+                    })
+                    break
+            
+            # Wait before next check
+            await asyncio.sleep(3)
+            
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for video {video_id}")
     except Exception as e:
