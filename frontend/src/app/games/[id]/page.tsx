@@ -40,18 +40,21 @@ export default function GamePage() {
   const [currentTime, setCurrentTime] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [shouldConnectWS, setShouldConnectWS] = useState(false)
   
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
   
-  // WebSocket connection for real-time updates
-  const { isConnected } = useWebSocket(videoId, {
+  // WebSocket connection for real-time updates - only connect if video is processing
+  const { isConnected } = useWebSocket(shouldConnectWS ? videoId : '', {
     onMessage: (message) => {
       if (message.type === 'status' && message.status) {
         setVideo(prev => prev ? { ...prev, status: message.status as VideoData['status'] } : null)
       }
-      if (message.type === 'ready') {
+      if (message.type === 'ready' || message.type === 'processed') {
         // Reload video data when processing is complete
         fetchVideo()
+        // Disconnect WebSocket after processing is done
+        setShouldConnectWS(false)
       }
     }
   })
@@ -61,6 +64,13 @@ export default function GamePage() {
       setLoading(true)
       const response = await axios.get(`${API_URL}/api/videos/${videoId}`)
       setVideo(response.data)
+      
+      // Only connect WebSocket if video is still processing
+      if (response.data.status === 'uploading' || response.data.status === 'processing') {
+        setShouldConnectWS(true)
+      } else {
+        setShouldConnectWS(false)
+      }
     } catch (err) {
       console.error('Failed to fetch video:', err)
       setError('Failed to load video')

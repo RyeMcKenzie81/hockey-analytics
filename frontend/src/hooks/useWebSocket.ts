@@ -41,6 +41,11 @@ export function useWebSocket(
   } = options
 
   const connect = useCallback(() => {
+    // Don't connect if no videoId provided (used to disable WebSocket)
+    if (!videoId) {
+      return
+    }
+    
     // Don't connect if component is unmounted or already connected
     if (isUnmountedRef.current) {
       return
