@@ -319,8 +319,20 @@ async def complete_upload(
                     pass  # Ignore cleanup errors
         
         # Update status and metadata
-        video_metadata = await processor.get_video_metadata(str(assembled_path))
-        metadata.update(video_metadata)  # Merge with existing metadata
+        try:
+            video_metadata = await processor.get_video_metadata(str(assembled_path))
+            metadata.update(video_metadata)  # Merge with existing metadata
+        except Exception as e:
+            logger.warning(f"Could not extract video metadata: {e}")
+            # Provide fallback metadata
+            metadata.update({
+                'duration': 0,
+                'fps': 30,
+                'resolution': 'unknown',
+                'codec': 'unknown',
+                'bitrate': 0,
+                'size': file_size
+            })
         
         supabase.table('videos').update({
             'status': 'processing',

@@ -1,6 +1,6 @@
 # Backend-specific nixpacks configuration
 [phases.setup]
-nixPkgs = ["python311", "gcc"]
+nixPkgs = ["python311", "gcc", "ffmpeg"]
 aptPkgs = ["ffmpeg"]
 
 [phases.install]
