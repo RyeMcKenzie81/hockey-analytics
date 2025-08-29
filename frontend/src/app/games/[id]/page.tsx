@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import axios from 'axios'
 import { VideoPlayer } from '@/components/VideoPlayer'
@@ -98,10 +98,10 @@ export default function GamePage() {
         return prev  // No changes, keep existing state
       })
       
-      // Only connect WebSocket if video is still processing
-      if (response.data.status === 'uploading' || response.data.status === 'processing') {
+      // Only connect WebSocket if video is still processing (and not already connected)
+      if ((response.data.status === 'uploading' || response.data.status === 'processing') && !shouldConnectWS) {
         setShouldConnectWS(true)
-      } else {
+      } else if (response.data.status === 'processed' || response.data.status === 'failed') {
         setShouldConnectWS(false)
       }
       
@@ -136,8 +136,7 @@ export default function GamePage() {
   }
 
   useEffect(() => {
-    // Initial fetch
-    setLoading(true)
+    // Initial fetch only
     fetchVideo()
   }, [videoId]) // eslint-disable-line react-hooks/exhaustive-deps
   
@@ -211,7 +210,7 @@ export default function GamePage() {
             {video.status === 'processed' && video.metadata?.hls_manifest ? (
               <>
                 <VideoPlayer 
-                  key={video.id}  // Add key to force new instance only when video ID changes
+                  key={`player-${video.id}`}  // Unique key for player instance
                   ref={videoRef}
                   videoId={video.id}
                   className="w-full rounded-lg"
