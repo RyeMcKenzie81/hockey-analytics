@@ -225,11 +225,11 @@ async def upload_chunk(
         file_options={"content-type": "application/octet-stream", "upsert": "true"}
     )
     
-    # Update metadata
+    # Update metadata - use set to avoid duplicates
     metadata = video.get('metadata', {})
-    uploaded_chunks = metadata.get('uploaded_chunks', [])
-    uploaded_chunks.append(chunk_index_int)
-    metadata['uploaded_chunks'] = uploaded_chunks
+    uploaded_chunks = set(metadata.get('uploaded_chunks', []))
+    uploaded_chunks.add(chunk_index_int)
+    metadata['uploaded_chunks'] = list(uploaded_chunks)  # Convert back to list for JSON
     
     supabase.table('videos').update({'metadata': metadata}).eq('id', video_id).execute()
     
@@ -254,12 +254,13 @@ async def complete_upload(
     org_id = video['organization_id']
     metadata = video.get('metadata', {})
     
-    # Verify all chunks uploaded
+    # Verify all chunks uploaded - use set to handle duplicates
     total_chunks = metadata.get('total_chunks', 0)
-    uploaded_chunks = metadata.get('uploaded_chunks', [])
+    uploaded_chunks = set(metadata.get('uploaded_chunks', []))
     
     if len(uploaded_chunks) != total_chunks:
-        raise HTTPException(400, f"Missing chunks: {total_chunks - len(uploaded_chunks)} chunks not uploaded")
+        missing = set(range(total_chunks)) - uploaded_chunks
+        raise HTTPException(400, f"Missing chunks: {missing}. Expected {total_chunks}, got {len(uploaded_chunks)}")
     
     # Assemble chunks into complete video
     processor = VideoProcessor(supabase)
