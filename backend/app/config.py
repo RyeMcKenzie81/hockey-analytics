@@ -24,7 +24,6 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
     CORS_ORIGINS: list[str] = [
-        "*",
         "http://localhost:3000",
         "http://localhost:3003",
         "https://frontend-production-2b5b.up.railway.app",
