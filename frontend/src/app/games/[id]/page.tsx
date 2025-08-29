@@ -51,11 +51,20 @@ export default function GamePage() {
   const { isConnected } = useWebSocket(shouldConnectWS ? videoId : '', {
     onMessage: (message) => {
       if (message.type === 'status' && message.status) {
-        setVideo(prev => prev ? { ...prev, status: message.status as VideoData['status'] } : null)
+        setVideo(prev => {
+          if (!prev) return null
+          // Only update if status actually changed
+          if (prev.status !== message.status) {
+            return { ...prev, status: message.status as VideoData['status'], metadata: message.metadata || prev.metadata }
+          }
+          // Update metadata if provided
+          if (message.metadata) {
+            return { ...prev, metadata: { ...prev.metadata, ...message.metadata } }
+          }
+          return prev
+        })
       }
-      if (message.type === 'ready' || message.type === 'processed') {
-        // Reload video data when processing is complete
-        fetchVideo()
+      if (message.type === 'ready' || message.type === 'error') {
         // Disconnect WebSocket after processing is done
         setShouldConnectWS(false)
       }
@@ -114,6 +123,8 @@ export default function GamePage() {
   }
 
   useEffect(() => {
+    // Initial fetch
+    setLoading(true)
     fetchVideo()
   }, [videoId]) // eslint-disable-line react-hooks/exhaustive-deps
   
