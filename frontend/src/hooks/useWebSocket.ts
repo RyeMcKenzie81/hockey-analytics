@@ -8,7 +8,7 @@ interface WebSocketMessage {
   status?: string
   progress?: number
   error?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface UseWebSocketOptions {
@@ -132,7 +132,7 @@ export function useWebSocket(
     }
   }, [])
 
-  const sendMessage = useCallback((message: any) => {
+  const sendMessage = useCallback((message: Record<string, unknown>) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message))
     } else {
@@ -147,7 +147,7 @@ export function useWebSocket(
     return () => {
       disconnect()
     }
-  }, [videoId]) // Only reconnect when videoId changes, not on every render
+  }, [videoId, connect, disconnect]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     isConnected,

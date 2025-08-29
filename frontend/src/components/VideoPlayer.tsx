@@ -15,7 +15,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
   ({ videoId, url, onTimeUpdate, onError, className }, ref) => {
     const hlsRef = useRef<Hls | null>(null)
     const internalRef = useRef<HTMLVideoElement>(null)
-    const videoRef = (ref as any) || internalRef
+    const videoRef = (ref as React.RefObject<HTMLVideoElement>) || internalRef
 
     useEffect(() => {
       if (!videoRef.current) return

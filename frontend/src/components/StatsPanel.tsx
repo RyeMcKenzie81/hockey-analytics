@@ -6,7 +6,7 @@ interface Event {
   event_type: string
   confidence: number
   verified?: boolean
-  data?: any
+  data?: Record<string, unknown>
 }
 
 interface StatsPanelProps {

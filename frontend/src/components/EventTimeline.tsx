@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 
 interface Event {
   id: string
@@ -8,7 +8,7 @@ interface Event {
   event_type: string
   confidence: number
   verified?: boolean
-  data?: any
+  data?: Record<string, unknown>
 }
 
 interface EventTimelineProps {

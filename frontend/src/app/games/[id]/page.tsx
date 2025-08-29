@@ -28,7 +28,7 @@ interface Event {
   event_type: string
   confidence: number
   verified?: boolean
-  data?: any
+  data?: Record<string, unknown>
 }
 
 export default function GamePage() {
@@ -44,7 +44,7 @@ export default function GamePage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
   
   // WebSocket connection for real-time updates
-  const { lastMessage, isConnected } = useWebSocket(videoId, {
+  const { isConnected } = useWebSocket(videoId, {
     onMessage: (message) => {
       if (message.type === 'status' && message.status) {
         setVideo(prev => prev ? { ...prev, status: message.status as VideoData['status'] } : null)
