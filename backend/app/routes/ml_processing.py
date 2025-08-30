@@ -162,11 +162,30 @@ async def process_video_ml(
         if start_time is None:
             start_time = 0.0
         
-        # Get duration from video metadata or default
+        # Get duration from video metadata or calculate from video file
         duration = video.get('duration_seconds')
         if duration is None or duration == 0:
-            logger.warning("Duration not found in video metadata, defaulting to 60 seconds")
-            duration = 60.0
+            logger.warning("Duration not found in video metadata, will extract from video file")
+            # Try to get duration from the actual video file
+            try:
+                import cv2
+                temp_cap = cv2.VideoCapture(video_path)
+                if temp_cap.isOpened():
+                    fps = temp_cap.get(cv2.CAP_PROP_FPS)
+                    frame_count = temp_cap.get(cv2.CAP_PROP_FRAME_COUNT)
+                    if fps > 0 and frame_count > 0:
+                        duration = frame_count / fps
+                        logger.info(f"Extracted duration from video: {duration:.1f} seconds")
+                    else:
+                        logger.warning("Could not extract duration from video, defaulting to 240 seconds (4 minutes)")
+                        duration = 240.0  # Default to 4 minutes instead of 1
+                    temp_cap.release()
+                else:
+                    logger.warning("Could not open video to get duration, defaulting to 240 seconds")
+                    duration = 240.0
+            except Exception as e:
+                logger.error(f"Error getting video duration: {e}")
+                duration = 240.0  # Default to 4 minutes
         
         if end_time is None:
             end_time = duration
