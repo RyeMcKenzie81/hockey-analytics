@@ -191,7 +191,7 @@ export default function GamePage() {
     try {
       const response = await axios.post(`${API_URL}/api/ml/process`, {
         video_id: videoId,
-        org_id: 'default', // Use default org for now
+        org_id: '00000000-0000-0000-0000-000000000000', // Use null UUID for default org
         use_gemini: true
       })
       

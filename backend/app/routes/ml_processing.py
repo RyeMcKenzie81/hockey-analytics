@@ -51,7 +51,10 @@ async def start_ml_processing(
     """Start ML processing for a video"""
     
     try:
-        # Verify video exists and belongs to org
+        # Log the incoming request for debugging
+        logger.info(f"ML processing request: video_id={request.video_id}, org_id={request.org_id}")
+        
+        # Verify video exists
         video_result = supabase.table('videos').select('*').eq('id', str(request.video_id)).single().execute()
         
         if not video_result.data:
@@ -68,6 +71,7 @@ async def start_ml_processing(
         
         # Generate processing ID
         processing_id = str(uuid4())
+        logger.info(f"Starting ML processing with ID: {processing_id}")
         
         # Start background processing
         background_tasks.add_task(
@@ -87,6 +91,8 @@ async def start_ml_processing(
             message="ML processing started in background"
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error starting ML processing: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -286,11 +292,29 @@ async def get_video_events(
         result = query.execute()
         
         if result.data:
-            return [EventResponse(**event) for event in result.data]
+            events = []
+            for event in result.data:
+                try:
+                    # Handle org_id that might be string 'default' from old data
+                    if event.get('org_id') == 'default':
+                        event['org_id'] = '00000000-0000-0000-0000-000000000000'
+                    events.append(EventResponse(**event))
+                except Exception as e:
+                    logger.warning(f"Skipping invalid event: {e}")
+                    continue
+            return events
         return []
         
     except Exception as e:
-        logger.error(f"Error fetching events: {e}")
+        error_msg = str(e)
+        logger.error(f"Error fetching events: {error_msg}")
+        
+        # If it's the infinite recursion error, we need to fix the RLS
+        if "infinite recursion" in error_msg:
+            logger.error("RLS policy issue detected. Events table needs migration.")
+            logger.error("Run the fix_events_rls.sql migration in Supabase")
+            return []  # Return empty for now
+        
         raise HTTPException(status_code=500, detail=str(e))
 
 
