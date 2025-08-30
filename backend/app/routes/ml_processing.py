@@ -42,6 +42,34 @@ def get_gemini_analyzer() -> Optional[GeminiAnalyzer]:
     return _gemini_analyzer
 
 
+@router.get("/status")
+async def get_ml_status():
+    """Get ML service status and model information"""
+    from pathlib import Path
+    
+    status = {
+        "hockey_model_exists": Path("models/hockey_yolo.pt").exists(),
+        "hockey_model_size": None,
+        "detector_loaded": _ml_detector is not None,
+        "models_loaded": False,
+        "model_type": None
+    }
+    
+    # Check model file size
+    model_path = Path("models/hockey_yolo.pt")
+    if model_path.exists():
+        status["hockey_model_size"] = model_path.stat().st_size
+    
+    # Check detector status
+    if _ml_detector:
+        status["models_loaded"] = _ml_detector._models_loaded
+        if _ml_detector.hockey_model:
+            status["model_type"] = "hockey"
+        elif _ml_detector.person_model:
+            status["model_type"] = "generic_yolov8"
+    
+    return status
+
 @router.post("/process", response_model=MLProcessingResponse)
 async def start_ml_processing(
     request: MLProcessingRequest,
