@@ -45,6 +45,9 @@ export default function GamePage() {
   const [error, setError] = useState<string | null>(null)
   const [shouldConnectWS, setShouldConnectWS] = useState(false)
   
+  // Track current time in a ref to prevent re-renders
+  const currentTimeRef = useRef(0)
+  
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
   
   // WebSocket connection for real-time updates - only connect if video is processing
@@ -119,15 +122,35 @@ export default function GamePage() {
     }
   }
   
-  // Memoize the time update handler to prevent re-renders
+  // Memoized time update handler that uses requestAnimationFrame for throttling
   const handleTimeUpdate = useMemo(() => {
-    let lastTime = 0
+    let animationFrameId: number | null = null
+    let lastUpdateTime = 0
+    
     return (time: number) => {
-      // Only update if time changed significantly (> 0.5 seconds)
-      if (Math.abs(lastTime - time) > 0.5) {
-        lastTime = time
-        setCurrentTime(time)
+      currentTimeRef.current = time
+      
+      // Cancel any pending animation frame
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
       }
+      
+      // Only update state at most every 250ms to prevent excessive re-renders
+      const now = Date.now()
+      if (now - lastUpdateTime > 250) {
+        lastUpdateTime = now
+        animationFrameId = requestAnimationFrame(() => {
+          setCurrentTime(time)
+          animationFrameId = null
+        })
+      }
+    }
+  }, [])
+  
+  // Memoized error handler to prevent re-renders
+  const handleVideoError = useMemo(() => {
+    return (errorMessage: string) => {
+      setError(errorMessage)
     }
   }, [])
 
@@ -222,12 +245,11 @@ export default function GamePage() {
             {video.status === 'processed' && video.metadata?.hls_manifest ? (
               <>
                 <VideoPlayer 
-                  key={`player-${video.id}`}  // Unique key for player instance
                   ref={videoRef}
                   videoId={video.id}
                   className="w-full rounded-lg"
                   onTimeUpdate={handleTimeUpdate}
-                  onError={(error) => setError(error)}
+                  onError={handleVideoError}
                 />
                 <EventTimeline
                   events={events}

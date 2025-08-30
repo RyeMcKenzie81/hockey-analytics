@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, forwardRef } from 'react'
+import { useEffect, useRef, forwardRef, useCallback } from 'react'
 import Hls from 'hls.js'
 
 interface VideoPlayerProps {
@@ -16,37 +16,54 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const hlsRef = useRef<Hls | null>(null)
     const internalRef = useRef<HTMLVideoElement>(null)
     const videoRef = (ref as React.RefObject<HTMLVideoElement>) || internalRef
+    
+    // Store callbacks in refs to prevent re-initialization
+    const onTimeUpdateRef = useRef(onTimeUpdate)
+    const onErrorRef = useRef(onError)
+    
+    // Update refs when props change
+    useEffect(() => {
+      onTimeUpdateRef.current = onTimeUpdate
+    }, [onTimeUpdate])
+    
+    useEffect(() => {
+      onErrorRef.current = onError
+    }, [onError])
 
     // Store the URL in a ref to prevent re-initialization
     const currentUrlRef = useRef<string>('')
+    const isInitializedRef = useRef<boolean>(false)
     
     useEffect(() => {
-      console.log('VideoPlayer useEffect triggered for video:', videoId)
-      if (!videoRef.current) {
+      const video = videoRef.current
+      if (!video) {
         console.log('No video element ref')
         return
       }
 
       // Construct HLS URL if not provided
       const hlsUrl = url || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/videos/${videoId}/hls/master.m3u8`
-      console.log('HLS URL:', hlsUrl)
       
-      // If HLS is already initialized with the same URL, don't reinitialize
-      if (currentUrlRef.current === hlsUrl && hlsRef.current) {
+      // Prevent double initialization in React StrictMode and when URL hasn't changed
+      if (isInitializedRef.current && currentUrlRef.current === hlsUrl) {
         console.log('HLS already initialized with same URL, skipping')
         return
       }
       
+      console.log('Initializing VideoPlayer for video:', videoId)
+      console.log('HLS URL:', hlsUrl)
+      
       currentUrlRef.current = hlsUrl
+      isInitializedRef.current = true
 
-      // Clean up previous HLS instance
-      if (hlsRef.current) {
-        console.log('Destroying previous HLS instance')
+      // Clean up previous HLS instance if URL changed
+      if (hlsRef.current && currentUrlRef.current !== hlsUrl) {
+        console.log('URL changed, destroying previous HLS instance')
         hlsRef.current.destroy()
         hlsRef.current = null
       }
 
-      if (Hls.isSupported()) {
+      if (Hls.isSupported() && !hlsRef.current) {
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
@@ -59,7 +76,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         })
         
         hls.loadSource(hlsUrl)
-        hls.attachMedia(videoRef.current)
+        hls.attachMedia(video)
         
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           console.log('HLS manifest loaded for video:', videoId)
@@ -74,7 +91,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
               case Hls.ErrorTypes.NETWORK_ERROR:
                 console.log('Fatal network error, attempting to recover')
                 // Don't auto-recover, let user retry
-                onError?.(`Network error: ${data.details}`)
+                onErrorRef.current?.(`Network error: ${data.details}`)
                 break
               case Hls.ErrorTypes.MEDIA_ERROR:
                 console.log('Fatal media error, attempting to recover')
@@ -82,7 +99,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 break
               default:
                 console.error('Fatal error, cannot recover')
-                onError?.(`Playback error: ${data.details}`)
+                onErrorRef.current?.(`Playback error: ${data.details}`)
                 break
             }
           } else {
@@ -101,28 +118,37 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         })
         
         hlsRef.current = hls
-      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         // Native HLS support (Safari)
-        videoRef.current.src = hlsUrl
+        video.src = hlsUrl
       } else {
-        onError?.('HLS is not supported in this browser')
+        onErrorRef.current?.('HLS is not supported in this browser')
       }
 
       return () => {
         if (hlsRef.current) {
+          console.log('Cleanup: destroying HLS instance')
           hlsRef.current.destroy()
           hlsRef.current = null
+          isInitializedRef.current = false
+          currentUrlRef.current = ''
         }
       }
-    }, [url, videoId, videoRef, onError])
+    }, [url, videoId]) // Removed videoRef and onError from dependencies
 
+    // Memoized time update handler to prevent unnecessary re-renders
+    const handleTimeUpdate = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
+      onTimeUpdateRef.current?.(e.currentTarget.currentTime)
+    }, [])
+    
     return (
       <video
         ref={videoRef}
         className={className || 'w-full h-auto'}
         controls
-        onTimeUpdate={(e) => onTimeUpdate?.(e.currentTarget.currentTime)}
+        onTimeUpdate={handleTimeUpdate}
         playsInline
+        preload="metadata"
       />
     )
   }
