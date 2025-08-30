@@ -2,6 +2,12 @@
 
 Multi-tenant hockey video analytics platform that automatically detects events from game footage using ML and provides an intuitive interface for review and analysis.
 
+## 📊 Current Status: Phase 2 Complete ✅
+- **Backend**: https://hockey-analytics-production.up.railway.app
+- **Frontend**: https://frontend-production-2b5b.up.railway.app
+- **Branch**: phase-2-production
+- **Next Phase**: Phase 3 - ML Detection & Analysis
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -43,6 +49,15 @@ uvicorn app.main:app --reload
 The API will be available at `http://localhost:8000`
 - API Documentation: `http://localhost:8000/docs`
 - Health Check: `http://localhost:8000/health`
+
+## 🎯 Phase 2 Features (Completed)
+- ✅ Video upload system (up to 5GB)
+- ✅ HLS video processing with FFmpeg
+- ✅ Multi-quality streaming (1080p/720p/480p)
+- ✅ Real-time WebSocket updates
+- ✅ React video player with timeline
+- ✅ Event management UI
+- ✅ Statistics dashboard
 
 ## 🏗️ Project Structure
 

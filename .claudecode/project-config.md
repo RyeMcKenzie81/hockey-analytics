@@ -15,7 +15,7 @@
 - **Queue**: Redis (Railway addon)
 - **Frontend**: Next.js + TypeScript + Tailwind CSS
 
-**Project Status**: Phase 2 - Video Processing & HLS Streaming
+**Project Status**: Phase 3 - ML Detection & Analysis
 
 ---
 
@@ -231,17 +231,17 @@ RAILWAY_ENVIRONMENT=
 - [x] Static file serving
 - [x] Landing page
 
-### Phase 2: Video Processing (CURRENT)
-- [ ] Chunked upload for large files
-- [ ] Supabase Storage integration
-- [ ] HLS conversion pipeline
-- [ ] FFmpeg integration
-- [ ] Streaming endpoints
-- [ ] Video metadata extraction
-- [ ] Thumbnail generation
-- [ ] Progress tracking
+### Phase 2: Video Processing ✅ COMPLETED
+- [x] Chunked upload for large files
+- [x] Supabase Storage integration
+- [x] HLS conversion pipeline
+- [x] FFmpeg integration
+- [x] Streaming endpoints
+- [x] Video metadata extraction
+- [x] Thumbnail generation
+- [x] Progress tracking
 
-### Phase 3: ML Detection
+### Phase 3: ML Detection (CURRENT)
 - [ ] YOLOv8 integration
 - [ ] Player/puck detection
 - [ ] Event detection (goals, shots)
@@ -250,10 +250,10 @@ RAILWAY_ENVIRONMENT=
 - [ ] Confidence scoring
 
 ### Phase 4: Review System
-- [ ] Next.js frontend
-- [ ] Video player component
-- [ ] Event timeline UI
-- [ ] Event verification UI
+- [x] Next.js frontend (completed in Phase 2)
+- [x] Video player component (completed in Phase 2)
+- [x] Event timeline UI (completed in Phase 2)
+- [x] Event verification UI (completed in Phase 2)
 - [ ] Training data export
 - [ ] Accuracy metrics
 
@@ -447,7 +447,9 @@ Please help fix this issue following our project standards.
 
 ---
 
-## 🆕 Patterns & Standards Added in Phase 1
+## 🆕 Patterns & Standards Added
+
+### Phase 1 Patterns
 - **Static File Serving**: Use FastAPI's `StaticFiles` mount for assets
 - **HTML Templates**: Store in `app/templates/` directory
 - **Error Handling**: Always return `ServiceResponse` with success/error
@@ -457,12 +459,25 @@ Please help fix this issue following our project standards.
 - **Python Version**: Specify in runtime.txt for Railway
 - **Dependencies**: Keep requirements.txt at root AND in backend/
 
+### Phase 2 Patterns
+- **Chunked Upload**: Use chunks for files >50MB to handle large videos
+- **HLS Streaming**: 10-second segments with multiple quality levels
+- **WebSocket Management**: Auto-reconnect with exponential backoff, auto-disconnect on completion
+- **React Optimization**: Store callbacks in refs to prevent re-initialization
+- **Video Processing**: Use FFmpeg with specific HLS settings for compatibility
+- **Error Handling**: Comprehensive error states for upload/processing/playback
+- **State Management**: Use refs for frequently updated values to prevent re-renders
+
 ## 🔄 Update Log
 - [2024-08-28]: Initial configuration and Phase 1 completion
 - [2024-08-28]: Added static file serving pattern for assets
 - [2024-08-28]: Updated checklist with Phase 1 completion
 - [2024-08-28]: Added new patterns discovered during implementation
 - [2024-08-28]: Reorganized phases for better progression
+- [2024-08-30]: Phase 2 completed - Video processing and streaming
+- [2024-08-30]: Added Phase 2 patterns for HLS streaming and React optimization
+- [2024-08-30]: Updated checklist marking Phase 2 complete, starting Phase 3
+- [2024-08-30]: Fixed video player re-initialization issue
 
 <!-- End of Claude Code Configuration -->
 <!-- Include this file at the start of every Claude Code session -->
