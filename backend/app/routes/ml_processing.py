@@ -112,30 +112,41 @@ async def process_video_ml(
     
     try:
         # Get video details from database
+        logger.info("Fetching video details from database...")
         supabase = get_supabase()
         video_result = supabase.table('videos').select('*').eq('id', str(video_id)).single().execute()
         video = video_result.data
+        logger.info(f"Video details: duration={video.get('duration_seconds')}s, fps={video.get('fps')}")
         
         # Get video file path
         video_path = video['storage_path']
+        logger.info(f"Video storage path: {video_path}")
         
         # If it's a Supabase storage path, download it locally first
         if video_path.startswith('videos/'):
+            logger.info("Downloading video from Supabase storage...")
             # Download from Supabase storage
             local_path = await download_video_from_storage(video_id, video_path)
             video_path = local_path
+            logger.info(f"Video downloaded to: {video_path}")
         
         # Set processing bounds
         if start_time is None:
             start_time = 0.0
         if end_time is None:
             end_time = video.get('duration_seconds', 60.0)
+        logger.info(f"Processing bounds: {start_time}s to {end_time}s")
         
         # Initialize ML detector
+        logger.info("Initializing ML detector...")
         ml_detector = get_ml_detector()
+        
+        logger.info("Loading ML models (this may take time on first run)...")
         await ml_detector.load_models()
+        logger.info("ML models loaded successfully")
         
         # Process video segment
+        logger.info(f"Starting video segment processing...")
         ml_events = await ml_detector.process_video_segment(
             video_id=str(video_id),
             video_path=video_path,
@@ -144,7 +155,7 @@ async def process_video_ml(
             fps=video.get('fps', 30.0)
         )
         
-        logger.info(f"ML detection found {len(ml_events)} events")
+        logger.info(f"ML detection complete! Found {len(ml_events)} events")
         
         # Enhance with Gemini if enabled
         if use_gemini and settings.GEMINI_API_KEY:
@@ -190,8 +201,33 @@ async def process_video_ml(
         logger.info(f"ML processing complete for video {video_id}")
         
     except Exception as e:
-        logger.error(f"Error in ML processing: {e}")
-        # TODO: Update processing status in database to 'failed'
+        logger.error(f"Critical error in ML processing: {e}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error details: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Store error status in database
+        try:
+            supabase = get_supabase()
+            # Create a failed event to indicate processing failed
+            error_event = {
+                'video_id': str(video_id),
+                'org_id': str(org_id),
+                'event_type': 'processing_failed',
+                'timestamp_seconds': 0,
+                'confidence_score': 0,
+                'detection_method': 'error',
+                'metadata': {
+                    'processing_id': processing_id,
+                    'error': str(e),
+                    'error_type': type(e).__name__
+                },
+                'verified': False
+            }
+            supabase.table('events').insert(error_event).execute()
+        except Exception as db_error:
+            logger.error(f"Failed to store error status: {db_error}")
 
 
 async def download_video_from_storage(video_id: UUID, storage_path: str) -> str:

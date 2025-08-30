@@ -108,10 +108,14 @@ class HockeyDetector:
         await self.load_models()
         
         logger.info(f"Processing video segment {video_id}: {start_time}s - {end_time}s")
+        logger.info(f"Video path: {video_path}")
+        logger.info(f"FPS: {fps}")
         
         try:
             # Extract frames from video segment
+            logger.info("Extracting frames from video...")
             frames = await self.extract_frames(video_path, start_time, end_time, fps)
+            logger.info(f"Successfully extracted {len(frames)} frames")
             events = []
             
             # Process frames in batches for efficiency
