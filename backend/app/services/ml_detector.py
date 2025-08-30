@@ -180,6 +180,17 @@ class HockeyDetector:
             
             cap = cv2.VideoCapture(video_path)
             
+            # Check if video opened successfully
+            if not cap.isOpened():
+                logger.error(f"Failed to open video file: {video_path}")
+                # Check if file exists
+                from pathlib import Path
+                if not Path(video_path).exists():
+                    logger.error(f"Video file does not exist at path: {video_path}")
+                else:
+                    logger.error(f"Video file exists but cannot be opened. Size: {Path(video_path).stat().st_size} bytes")
+                return frames
+            
             # Get FPS from video if not provided
             if fps is None or fps == 0:
                 fps = cap.get(cv2.CAP_PROP_FPS)

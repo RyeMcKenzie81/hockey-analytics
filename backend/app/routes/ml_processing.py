@@ -285,13 +285,20 @@ async def download_video_from_storage(video_id: UUID, storage_path: str) -> str:
     
     local_path = temp_dir / f"{video_id}.mp4"
     
-    # Check if already downloaded
+    # Check if already downloaded and valid
     if local_path.exists():
-        return str(local_path)
+        file_size = local_path.stat().st_size
+        logger.info(f"Video already cached at {local_path} (size: {file_size} bytes)")
+        if file_size > 0:
+            return str(local_path)
+        else:
+            logger.warning("Cached video file is empty, re-downloading...")
+            local_path.unlink()
     
     try:
         supabase = get_supabase()
         
+        logger.info(f"Downloading video from Supabase storage: {storage_path}")
         # Download from Supabase storage
         response = supabase.storage.from_('videos').download(storage_path)
         
@@ -299,11 +306,19 @@ async def download_video_from_storage(video_id: UUID, storage_path: str) -> str:
         with open(local_path, 'wb') as f:
             f.write(response)
         
-        logger.info(f"Downloaded video to {local_path}")
+        file_size = local_path.stat().st_size
+        logger.info(f"Downloaded video to {local_path} (size: {file_size} bytes)")
+        
+        if file_size == 0:
+            logger.error("Downloaded video file is empty!")
+            raise ValueError("Downloaded video file is empty")
+            
         return str(local_path)
         
     except Exception as e:
         logger.error(f"Error downloading video: {e}")
+        if local_path.exists():
+            local_path.unlink()  # Clean up failed download
         raise
 
 
