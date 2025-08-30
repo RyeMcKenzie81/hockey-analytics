@@ -166,6 +166,18 @@ class HockeyDetector:
         frames = []
         
         try:
+            # Validate inputs
+            if start_time is None:
+                start_time = 0.0
+            if end_time is None:
+                logger.error("end_time is None, cannot extract frames")
+                raise ValueError("end_time cannot be None")
+            
+            start_time = float(start_time)
+            end_time = float(end_time)
+            
+            logger.info(f"Extracting frames from {start_time}s to {end_time}s")
+            
             cap = cv2.VideoCapture(video_path)
             
             # Get FPS from video if not provided
@@ -177,6 +189,8 @@ class HockeyDetector:
                 else:
                     logger.info(f"Using FPS from video file: {fps}")
             
+            fps = float(fps)
+            
             # Set video position to start time
             cap.set(cv2.CAP_PROP_POS_MSEC, start_time * 1000)
             
@@ -184,6 +198,8 @@ class HockeyDetector:
             start_frame = int(start_time * fps)
             end_frame = int(end_time * fps)
             total_frames = end_frame - start_frame
+            
+            logger.info(f"Extracting {total_frames} frames (frames {start_frame} to {end_frame})")
             
             frame_count = 0
             while frame_count < total_frames:

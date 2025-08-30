@@ -133,9 +133,21 @@ async def process_video_ml(
         # Set processing bounds
         if start_time is None:
             start_time = 0.0
+        
+        # Get duration from video metadata or default
+        duration = video.get('duration_seconds')
+        if duration is None or duration == 0:
+            logger.warning("Duration not found in video metadata, defaulting to 60 seconds")
+            duration = 60.0
+        
         if end_time is None:
-            end_time = video.get('duration_seconds', 60.0)
-        logger.info(f"Processing bounds: {start_time}s to {end_time}s")
+            end_time = duration
+        
+        # Ensure values are valid floats
+        start_time = float(start_time)
+        end_time = float(end_time)
+        
+        logger.info(f"Processing bounds: {start_time}s to {end_time}s (duration: {duration}s)")
         
         # Initialize ML detector
         logger.info("Initializing ML detector...")
