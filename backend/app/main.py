@@ -13,7 +13,7 @@ import uvicorn
 from .config import settings
 from .models import ServiceResponse, VideoUpload
 from .database import get_supabase
-from .routes import videos, events, organizations
+from .routes import videos, events, organizations, ml_processing
 
 # Configure logging
 logging.basicConfig(
@@ -152,6 +152,7 @@ async def upload_video(
 app.include_router(videos.router, prefix="/api/videos", tags=["videos"])
 app.include_router(events.router, prefix="/api/events", tags=["events"])  
 app.include_router(organizations.router, prefix="/api/organizations", tags=["organizations"])
+app.include_router(ml_processing.router, tags=["ML Processing"])
 
 
 if __name__ == "__main__":

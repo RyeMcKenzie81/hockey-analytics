@@ -25,6 +25,17 @@ websockets==12.0
 # Redis (optional for now)
 redis==5.0.1
 
+# ML & Computer Vision
+torch>=2.0.0
+torchvision>=0.15.0
+ultralytics>=8.0.0
+opencv-python==4.9.0.80
+numpy==1.24.3
+Pillow==10.2.0
+
+# AI/LLM Integration
+google-generativeai==0.8.3
+
 # Development
 pytest==8.0.0
 pytest-asyncio==0.23.5

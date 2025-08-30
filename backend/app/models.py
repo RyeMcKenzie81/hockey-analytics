@@ -20,6 +20,7 @@ class EventType(str, Enum):
     FACEOFF = "faceoff"
     OFFSIDE = "offside"
     ICING = "icing"
+    HIT = "hit"
     PERIOD_START = "period_start"
     PERIOD_END = "period_end"
 
@@ -89,3 +90,37 @@ class OrganizationResponse(BaseModel):
     slug: str
     created_at: datetime
     settings: Optional[Dict[str, Any]] = None
+
+
+class MLProcessingRequest(BaseModel):
+    video_id: UUID
+    org_id: UUID
+    start_time: Optional[float] = None
+    end_time: Optional[float] = None
+    detection_types: Optional[List[EventType]] = None
+    use_gemini: bool = True
+
+
+class MLProcessingResponse(BaseModel):
+    video_id: UUID
+    processing_id: str
+    status: str
+    message: str
+    events_detected: Optional[int] = None
+
+
+class EventDetectionResult(BaseModel):
+    event_type: EventType
+    timestamp: float
+    confidence_score: float = Field(ge=0, le=1)
+    frame_number: int
+    metadata: Dict[str, Any]
+    bounding_boxes: Optional[List[Dict[str, Any]]] = None
+    source: str = Field(default="ml", description="Detection source: ml, gemini, or manual")
+    
+    
+class BatchEventCreate(BaseModel):
+    video_id: UUID
+    org_id: UUID
+    events: List[EventDetectionResult]
+    processing_id: Optional[str] = None

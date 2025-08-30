@@ -27,11 +27,13 @@ interface VideoData {
 
 interface Event {
   id: string
-  timestamp: number
+  timestamp_seconds: number
   event_type: string
-  confidence: number
+  confidence_score: number
   verified?: boolean
-  data?: Record<string, unknown>
+  detection_method?: string
+  metadata?: Record<string, unknown>
+  frame_data?: Record<string, unknown>
 }
 
 export default function GamePage() {
@@ -44,6 +46,8 @@ export default function GamePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [shouldConnectWS, setShouldConnectWS] = useState(false)
+  const [mlProcessing, setMlProcessing] = useState(false)
+  const [mlProcessingId, setMlProcessingId] = useState<string | null>(null)
   
   // Track current time in a ref to prevent re-renders
   const currentTimeRef = useRef(0)
@@ -118,7 +122,7 @@ export default function GamePage() {
   
   const jumpToEvent = (event: Event) => {
     if (videoRef.current) {
-      videoRef.current.currentTime = event.timestamp
+      videoRef.current.currentTime = event.timestamp_seconds
     }
   }
   
@@ -162,11 +166,67 @@ export default function GamePage() {
       )
     )
     
-    // TODO: Send verification to backend
+    // Send verification to backend
     try {
-      await axios.patch(`${API_URL}/api/events/${eventId}`, { verified })
+      await axios.post(`${API_URL}/api/ml/events/verify/${eventId}`, null, {
+        params: { verified }
+      })
     } catch (err) {
       console.error('Failed to verify event:', err)
+    }
+  }
+  
+  const fetchEvents = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/ml/events/${videoId}`)
+      setEvents(response.data)
+    } catch (err) {
+      console.error('Failed to fetch events:', err)
+    }
+  }
+  
+  const startMLProcessing = async () => {
+    if (mlProcessing || !video || video.status !== 'processed') return
+    
+    setMlProcessing(true)
+    try {
+      const response = await axios.post(`${API_URL}/api/ml/process`, {
+        video_id: videoId,
+        org_id: 'default', // Use default org for now
+        use_gemini: true
+      })
+      
+      setMlProcessingId(response.data.processing_id)
+      
+      // Start polling for ML results
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await axios.get(`${API_URL}/api/ml/status/${response.data.processing_id}`)
+          
+          if (statusResponse.data.status === 'completed') {
+            clearInterval(pollInterval)
+            setMlProcessing(false)
+            await fetchEvents() // Refresh events
+          } else if (statusResponse.data.status === 'failed') {
+            clearInterval(pollInterval)
+            setMlProcessing(false)
+            setError('ML processing failed')
+          }
+        } catch (err) {
+          console.error('Failed to check ML status:', err)
+        }
+      }, 3000)
+      
+      // Stop polling after 5 minutes
+      setTimeout(() => {
+        clearInterval(pollInterval)
+        setMlProcessing(false)
+      }, 5 * 60 * 1000)
+      
+    } catch (err) {
+      console.error('Failed to start ML processing:', err)
+      setMlProcessing(false)
+      setError('Failed to start ML processing')
     }
   }
 
@@ -186,23 +246,12 @@ export default function GamePage() {
     }
   }, [video?.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mock events for Phase 2 demo (will be replaced with real events in Phase 3)
+  // Fetch real events when video is processed
   useEffect(() => {
-    if (video?.status === 'processed' && video.metadata?.duration) {
-      // Generate some sample events for demonstration
-      const sampleEvents: Event[] = [
-        { id: '1', timestamp: 120, event_type: 'goal', confidence: 0.95, verified: true },
-        { id: '2', timestamp: 245, event_type: 'shot', confidence: 0.88 },
-        { id: '3', timestamp: 380, event_type: 'penalty', confidence: 0.92 },
-        { id: '4', timestamp: 520, event_type: 'save', confidence: 0.85 },
-        { id: '5', timestamp: 680, event_type: 'faceoff', confidence: 0.90 },
-        { id: '6', timestamp: 850, event_type: 'shot', confidence: 0.87 },
-        { id: '7', timestamp: 1020, event_type: 'goal', confidence: 0.93, verified: true },
-      ].filter(e => e.timestamp < (video.metadata?.duration || 0))
-      
-      setEvents(sampleEvents)
+    if (video?.status === 'processed') {
+      fetchEvents()
     }
-  }, [video])
+  }, [video?.status]) // eslint-disable-line react-hooks/exhaustive-deps
   
   if (loading) {
     return (
@@ -225,7 +274,8 @@ export default function GamePage() {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">{video.filename}</h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
             <span className={`px-3 py-1 rounded-full text-sm ${
               video.status === 'processed' ? 'bg-green-600' :
               video.status === 'processing' ? 'bg-yellow-600' :
@@ -236,6 +286,27 @@ export default function GamePage() {
             </span>
             {isConnected && (
               <span className="text-green-400 text-sm">● Live Updates</span>
+            )}
+            </div>
+            {video.status === 'processed' && (
+              <button
+                onClick={startMLProcessing}
+                disabled={mlProcessing}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  mlProcessing 
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {mlProcessing ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    Detecting Events...
+                  </span>
+                ) : (
+                  'Detect Events with AI'
+                )}
+              </button>
             )}
           </div>
         </div>

@@ -4,11 +4,12 @@ import { useState } from 'react'
 
 interface Event {
   id: string
-  timestamp: number
+  timestamp_seconds: number
   event_type: string
-  confidence: number
+  confidence_score: number
   verified?: boolean
-  data?: Record<string, unknown>
+  detection_method?: string
+  metadata?: Record<string, unknown>
 }
 
 interface EventListProps {
@@ -116,12 +117,12 @@ export function EventList({
                           {event.event_type.replace('_', ' ')}
                         </span>
                         <span className="text-xs text-gray-400">
-                          {formatTime(event.timestamp)}
+                          {formatTime(event.timestamp_seconds)}
                         </span>
                       </div>
-                      {event.confidence && (
+                      {event.confidence_score && (
                         <div className="text-xs text-gray-500">
-                          Confidence: {Math.round(event.confidence * 100)}%
+                          Confidence: {Math.round(event.confidence_score * 100)}%
                         </div>
                       )}
                     </div>

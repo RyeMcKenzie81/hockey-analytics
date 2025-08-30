@@ -4,11 +4,11 @@ import { useState, useRef } from 'react'
 
 interface Event {
   id: string
-  timestamp: number
+  timestamp_seconds: number
   event_type: string
-  confidence: number
+  confidence_score: number
   verified?: boolean
-  data?: Record<string, unknown>
+  metadata?: Record<string, unknown>
 }
 
 interface EventTimelineProps {
@@ -93,7 +93,7 @@ export function EventTimeline({
             <div
               key={event.id}
               className="absolute -translate-x-1/2 cursor-pointer group"
-              style={{ left: `${getEventPosition(event.timestamp)}%` }}
+              style={{ left: `${getEventPosition(event.timestamp_seconds)}%` }}
               onClick={() => onEventClick(event)}
               onMouseEnter={() => setHoveredEvent(event)}
               onMouseLeave={() => setHoveredEvent(null)}
@@ -110,10 +110,10 @@ export function EventTimeline({
                 <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-30 whitespace-nowrap">
                   <div className="bg-gray-900 text-white text-xs rounded px-2 py-1 shadow-lg">
                     <div className="font-semibold capitalize">{event.event_type.replace('_', ' ')}</div>
-                    <div className="text-gray-400">{formatTime(event.timestamp)}</div>
-                    {event.confidence && (
+                    <div className="text-gray-400">{formatTime(event.timestamp_seconds)}</div>
+                    {event.confidence_score && (
                       <div className="text-gray-400">
-                        Confidence: {Math.round(event.confidence * 100)}%
+                        Confidence: {Math.round(event.confidence_score * 100)}%
                       </div>
                     )}
                   </div>
