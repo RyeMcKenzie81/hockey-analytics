@@ -160,13 +160,22 @@ class HockeyDetector:
         video_path: str, 
         start_time: float, 
         end_time: float,
-        fps: float
+        fps: Optional[float] = None
     ) -> List[np.ndarray]:
         """Extract frames from video file"""
         frames = []
         
         try:
             cap = cv2.VideoCapture(video_path)
+            
+            # Get FPS from video if not provided
+            if fps is None or fps == 0:
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                if fps == 0 or fps is None:
+                    logger.warning("Could not determine FPS from video, defaulting to 30")
+                    fps = 30.0
+                else:
+                    logger.info(f"Using FPS from video file: {fps}")
             
             # Set video position to start time
             cap.set(cv2.CAP_PROP_POS_MSEC, start_time * 1000)

@@ -147,12 +147,18 @@ async def process_video_ml(
         
         # Process video segment
         logger.info(f"Starting video segment processing...")
+        # Ensure FPS is not None (default to 30 if missing)
+        video_fps = video.get('fps')
+        if video_fps is None:
+            logger.warning("FPS not found in video metadata, defaulting to 30")
+            video_fps = 30.0
+        
         ml_events = await ml_detector.process_video_segment(
             video_id=str(video_id),
             video_path=video_path,
             start_time=start_time,
             end_time=end_time,
-            fps=video.get('fps', 30.0)
+            fps=float(video_fps)  # Ensure it's a float
         )
         
         logger.info(f"ML detection complete! Found {len(ml_events)} events")
