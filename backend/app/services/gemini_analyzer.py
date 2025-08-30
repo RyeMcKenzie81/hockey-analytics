@@ -174,7 +174,16 @@ Return your analysis as a JSON object with this structure:
 }}
 ```
 
-Be precise with timestamps and provide confidence scores between 0 and 1."""
+Be precise with timestamps and provide confidence scores between 0 and 1.
+
+IMPORTANT: For timestamps, provide the exact moment when the event OCCURS:
+- Goal: When puck crosses the goal line
+- Shot: When puck leaves the player's stick
+- Save: When goalie makes contact with puck
+- Hit: When body contact is made
+- Penalty: When infraction occurs (not when referee raises arm)
+- Faceoff: When puck is dropped
+- Offside/Icing: When the infraction occurs (not the whistle)"""
         
         return prompt
     
