@@ -150,8 +150,8 @@ async def process_video_ml(
         video_path = video['storage_path']
         logger.info(f"Video storage path: {video_path}")
         
-        # If it's a Supabase storage path, download it locally first
-        if video_path.startswith('videos/'):
+        # If it's a Supabase storage path (not a local file), download it
+        if not video_path.startswith('/') and not os.path.exists(video_path):
             logger.info("Downloading video from Supabase storage...")
             # Download from Supabase storage
             local_path = await download_video_from_storage(video_id, video_path)

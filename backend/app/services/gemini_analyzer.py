@@ -201,6 +201,29 @@ Be precise with timestamps and provide confidence scores between 0 and 1."""
             logger.error(f"Error calling Gemini API: {e}")
             raise
     
+    def normalize_event_type(self, event_type: str) -> str:
+        """Normalize event type to match database enum"""
+        event_type = event_type.lower()
+        
+        # Map variations to correct enum values
+        event_map = {
+            'offsides': 'offside',
+            'offside': 'offside',
+            'icing': 'icing',
+            'hit': 'hit',
+            'goal': 'goal',
+            'penalty': 'penalty',
+            'shot': 'shot',
+            'save': 'save',
+            'faceoff': 'faceoff',
+            'face-off': 'faceoff',
+            'period_start': 'period_start',
+            'period_end': 'period_end',
+            'stoppage': 'faceoff'  # Map general stoppage to faceoff
+        }
+        
+        return event_map.get(event_type, event_type)
+    
     def parse_gemini_response(self, response_text: str) -> GeminiAnalysis:
         """Parse Gemini response into structured analysis"""
         try:
@@ -215,6 +238,13 @@ Be precise with timestamps and provide confidence scores between 0 and 1."""
             
             # Parse JSON
             data = json.loads(json_str)
+            
+            # Normalize event types in the response
+            for event_list in ['verified_events', 'missed_events']:
+                if event_list in data:
+                    for event in data[event_list]:
+                        if 'event_type' in event:
+                            event['event_type'] = self.normalize_event_type(event['event_type'])
             
             return GeminiAnalysis(
                 verified_events=data.get('verified_events', []),
