@@ -33,16 +33,24 @@ class EventDetection:
         }
 
 class HockeyDetector:
-    """ML detector for hockey game events using YOLOv8 and custom models"""
+    """ML detector for hockey game events using hockey-specific YOLO models"""
     
     def __init__(self):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         logger.info(f"Initializing HockeyDetector with device: {self.device}")
         
-        # Base models
-        self.person_model = None
-        self.puck_model = None  # Custom trained model for puck detection
+        # Hockey-specific models
+        self.hockey_model = None  # Will try to load SimulaMet HockeyAI model
+        self.person_model = None  # Fallback to generic YOLOv8
         self.jersey_ocr = None  # TrOCR or EasyOCR for jersey numbers
+        
+        # Hockey class mappings for SimulaMet model
+        self.hockey_classes = {
+            'player': 0,
+            'puck': 1,
+            'referee': 2,
+            'goalie': 3
+        }
         
         # Event detection patterns
         self.event_patterns = {
@@ -64,12 +72,21 @@ class HockeyDetector:
         
         try:
             logger.info("Loading YOLO models...")
-            # Load YOLOv8 for person detection
-            self.person_model = YOLO('yolov8x.pt')
-            self.person_model.to(self.device)
             
-            # TODO: Load custom puck detection model
-            # self.puck_model = YOLO('models/puck_detector.pt')
+            # Try to load hockey-specific model first
+            hockey_model_path = Path('models/hockey_yolo.pt')
+            if hockey_model_path.exists():
+                logger.info("Loading hockey-specific YOLO model...")
+                self.hockey_model = YOLO(str(hockey_model_path))
+                self.hockey_model.to(self.device)
+                logger.info("Hockey-specific model loaded successfully")
+            else:
+                # Fallback to generic YOLOv8 for person detection
+                logger.info("Hockey model not found, using generic YOLOv8x...")
+                self.person_model = YOLO('yolov8x.pt')
+                self.person_model.to(self.device)
+                logger.info("Note: For better results, download hockey-specific model from:")
+                logger.info("https://huggingface.co/datasets/SimulaMet-HOST/HockeyAI")
             
             self._models_loaded = True
             logger.info("Models loaded successfully")
@@ -174,15 +191,17 @@ class HockeyDetector:
         return frames
     
     async def detect_people(self, frames: List[np.ndarray]) -> List[Dict]:
-        """Detect players and referees in frames"""
+        """Detect players, referees, and pucks in frames"""
         detections = []
         
-        if not self.person_model:
+        # Use hockey model if available, otherwise fallback to person model
+        model = self.hockey_model if self.hockey_model else self.person_model
+        if not model:
             return detections
         
         try:
             # Run inference on batch
-            results = self.person_model(frames, stream=True)
+            results = model(frames, stream=True)
             
             for idx, result in enumerate(results):
                 frame_detections = {
@@ -195,28 +214,54 @@ class HockeyDetector:
                 # Process detections
                 if result.boxes is not None:
                     for box in result.boxes:
-                        if box.cls == 0:  # Person class
-                            bbox = box.xyxy[0].tolist()
-                            confidence = box.conf[0].item()
-                            
-                            # Classify as player, referee, or goalie based on position/appearance
-                            person_type = await self.classify_person(
-                                frames[idx], 
-                                bbox
-                            )
-                            
-                            detection = {
-                                'bbox': bbox,
-                                'confidence': confidence,
-                                'type': person_type
-                            }
-                            
-                            if person_type == 'referee':
-                                frame_detections['referees'].append(detection)
-                            elif person_type == 'goalie':
-                                frame_detections['goalies'].append(detection)
+                        bbox = box.xyxy[0].tolist()
+                        confidence = box.conf[0].item()
+                        class_id = int(box.cls[0].item())
+                        
+                        # Map classes based on model type
+                        if self.hockey_model:
+                            # Hockey-specific model classes
+                            if class_id == self.hockey_classes.get('player', 0):
+                                person_type = 'player'
+                            elif class_id == self.hockey_classes.get('puck', 1):
+                                person_type = 'puck'
+                            elif class_id == self.hockey_classes.get('referee', 2):
+                                person_type = 'referee'
+                            elif class_id == self.hockey_classes.get('goalie', 3):
+                                person_type = 'goalie'
                             else:
-                                frame_detections['players'].append(detection)
+                                person_type = 'unknown'
+                        else:
+                            # Generic model - only detects persons
+                            if class_id == 0:  # Person class in COCO
+                                # Try to classify based on appearance
+                                person_type = await self.classify_person(
+                                    frames[idx], 
+                                    bbox
+                                )
+                            else:
+                                continue
+                        
+                        detection = {
+                            'bbox': bbox,
+                            'confidence': confidence,
+                            'type': person_type,
+                            'class_id': class_id
+                        }
+                        
+                        # Organize detections by type
+                        if person_type == 'referee':
+                            frame_detections['referees'].append(detection)
+                        elif person_type == 'goalie':
+                            frame_detections['goalies'].append(detection)
+                        elif person_type == 'puck':
+                            if 'pucks' not in frame_detections:
+                                frame_detections['pucks'] = []
+                            frame_detections['pucks'].append(detection)
+                        elif person_type == 'player':
+                            frame_detections['players'].append(detection)
+                        else:
+                            continue
                 
                 detections.append(frame_detections)
         

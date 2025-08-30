@@ -2,11 +2,13 @@
 
 interface Event {
   id: string
-  timestamp: number
+  timestamp_seconds: number
   event_type: string
-  confidence: number
+  confidence_score: number
   verified?: boolean
-  data?: Record<string, unknown>
+  detection_method?: string
+  metadata?: Record<string, unknown>
+  frame_data?: Record<string, unknown>
 }
 
 interface StatsPanelProps {

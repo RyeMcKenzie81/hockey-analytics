@@ -47,7 +47,6 @@ export default function GamePage() {
   const [error, setError] = useState<string | null>(null)
   const [shouldConnectWS, setShouldConnectWS] = useState(false)
   const [mlProcessing, setMlProcessing] = useState(false)
-  const [mlProcessingId, setMlProcessingId] = useState<string | null>(null)
   
   // Track current time in a ref to prevent re-renders
   const currentTimeRef = useRef(0)
@@ -195,8 +194,6 @@ export default function GamePage() {
         org_id: 'default', // Use default org for now
         use_gemini: true
       })
-      
-      setMlProcessingId(response.data.processing_id)
       
       // Start polling for ML results
       const pollInterval = setInterval(async () => {
