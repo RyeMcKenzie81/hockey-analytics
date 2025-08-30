@@ -29,6 +29,26 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Environment: {settings.RAILWAY_ENVIRONMENT}")
     
+    # Download hockey model if not present
+    try:
+        import subprocess
+        model_path = Path("models/hockey_yolo.pt")
+        if not model_path.exists():
+            logger.info("Hockey model not found, attempting to download...")
+            result = subprocess.run(
+                ["python", "scripts/setup_hockey_model.py"],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                logger.info("Hockey model downloaded successfully")
+            else:
+                logger.warning(f"Could not download hockey model: {result.stderr}")
+        else:
+            logger.info("Hockey model found at models/hockey_yolo.pt")
+    except Exception as e:
+        logger.warning(f"Error checking/downloading hockey model: {e}")
+    
     # Test database connection
     try:
         client = get_supabase()
